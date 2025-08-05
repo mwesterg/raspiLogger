@@ -37,7 +37,8 @@ esp32_connection_status = {
         "mac_address": None,
         "usb_mode": None,
         "app_version": None,
-        "project_name": None
+        "project_name": None,
+        "reset_reason": None
     }
 }
 
@@ -167,16 +168,24 @@ def monitor_serial_port(device_path):
             esp32_connection_status["port"] = device_path
             print(f"Successfully opened {device_path}. Waiting for messages...")
             reset_esp32(device_path)
+            time.sleep(2) # Wait for the device to boot
             while True:
                 try:
-                    print("Waiting for line from serial...")
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if line:
                         print(f"Received line: {line}")
-                        if "App version:" in line:
-                            esp32_connection_status["device_info"]["app_version"] = line.split("App version:")[1].strip()
-                        if "Project name:" in line:
-                            esp32_connection_status["device_info"]["project_name"] = line.split("Project name:")[1].strip()
+                        app_version_match = re.search(r"App version: (.*?)\x1b", line)
+                        if app_version_match:
+                            esp32_connection_status["device_info"]["app_version"] = app_version_match.group(1).strip()
+
+                        project_name_match = re.search(r"Project name: (.*?)\x1b", line)
+                        if project_name_match:
+                            esp32_connection_status["device_info"]["project_name"] = project_name_match.group(1).strip()
+
+                        reset_reason_match = re.search(r"rst:0x[0-9a-f]+ \((.+)\)", line)
+                        if reset_reason_match:
+                            esp32_connection_status["device_info"]["reset_reason"] = reset_reason_match.group(1).strip()
+
                         if "USB-CDC" in line:
                             esp32_connection_status["device_info"]["usb_mode"] = "USB-CDC"
                         parsed_log = parse_log_message(line)
@@ -245,7 +254,8 @@ def device_event_handler():
                     "mac_address": None,
                     "usb_mode": None,
                     "app_version": None,
-                    "project_name": None
+                    "project_name": None,
+                    "reset_reason": None
                 }
         
         # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
@@ -393,6 +403,9 @@ def index():
                                 if (data.device_info.project_name) {
                                     deviceInfoHTML += `<div><span class="font-semibold">Project Name:</span> ${data.device_info.project_name}</div>`;
                                 }
+                                if (data.device_info.reset_reason) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">Reset Reason:</span> ${data.device_info.reset_reason}</div>`;
+                                }
                                 deviceInfoHTML += `</div>`;
                             }
                             deviceInfo.innerHTML = deviceInfoHTML;
@@ -521,6 +534,7 @@ def get_latest_logs(level):
         query = f"SELECT timestamp, tag, message FROM {level} ORDER BY received_at DESC LIMIT 10"
         cursor.execute(query)
         logs = [dict(row) for row in cursor.fetchall()]
+        logs.reverse()  # Reverse the list to show oldest first
     return jsonify(logs)
 
 
