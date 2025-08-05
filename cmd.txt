@@ -1,0 +1,3 @@
+sudo chown -R wester:wester ~/raspiLogger
+cd ~/raspiLogger/etc 
+sudo stow -v -t /etc .

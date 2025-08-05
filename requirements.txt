@@ -1,0 +1,4 @@
+Flask
+pyserial
+pyudev
+esptool
