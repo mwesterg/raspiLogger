@@ -41,7 +41,8 @@ esp32_connection_status = {
         "compile_time": None,
         "esp_idf_version": None
     },
-    "boot_logs": []
+    "boot_logs": [],
+    "boot_timestamp": None
 }
 
 # --- Flask Web App ---
@@ -169,6 +170,7 @@ def monitor_serial_port(device_path):
             esp32_connection_status["connected"] = True
             esp32_connection_status["port"] = device_path
             esp32_connection_status["boot_logs"] = [] # Clear previous boot logs on new connection
+            esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
             print(f"Successfully opened {device_path}. Waiting for messages...")
             reset_esp32(device_path)
             time.sleep(2) # Wait for the device to boot
@@ -194,7 +196,7 @@ def monitor_serial_port(device_path):
                         if project_name_match:
                             esp32_connection_status["device_info"]["project_name"] = project_name_match.group(1).strip()
 
-                        reset_reason_match = re.search(r"rst:0x[0-9a-f]+ \((.+)\)", line)
+                        reset_reason_match = re.search(r"rst:0x[0-9a-f]+ \(([^)]+)\)", line)
                         if reset_reason_match:
                             esp32_connection_status["device_info"]["reset_reason"] = reset_reason_match.group(1).strip()
 
@@ -235,7 +237,9 @@ def monitor_serial_port(device_path):
                         "compile_time": None,
                         "esp_idf_version": None
                     }
+                    
                     esp32_connection_status["boot_logs"] = []
+                    esp32_connection_status["boot_timestamp"] = None
                     break
                 except Exception as e:
                     print(f"An error occurred while reading from serial port: {e}")
@@ -302,7 +306,7 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ESP32 Log Dashboard</title>
+        <title>TurboMon</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
@@ -368,9 +372,13 @@ def index():
 
             <h2 class="text-2xl font-semibold mb-4 mt-8 text-gray-900">Maintenance</h2>
             <div class="bg-white p-6 rounded-lg shadow-md">
-                <button id="reset-button" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300">Reset Everything</button>
+                <div class="flex flex-wrap gap-4">
+                    <button id="reset-database-button" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300">Reset Database</button>
+                    <button id="show-boot-logs-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Show Boot Logs</button>
+                    <button id="restart-device-button" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded transition duration-300">Restart Device</button>
+                    <button id="filter-logs-button" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded transition duration-300">Filter Logs by Tag</button>
+                </div>
                 <p class="text-sm text-gray-600 mt-2">This will permanently delete all stored logs and reset all counters.</p>
-                <button id="show-boot-logs-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300 mt-4">Show Boot Logs</button>
             </div>
         </div>
 
@@ -383,7 +391,7 @@ def index():
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                         </svg>
                     </div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Reset Everything?</h3>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Reset Database?</h3>
                     <div class="mt-2 px-7 py-3">
                         <p class="text-sm text-gray-500">
                             Are you sure? All stored logs and statistics will be permanently deleted. This action cannot be undone.
@@ -391,7 +399,7 @@ def index():
                     </div>
                     <div class="items-center px-4 py-3 space-y-2 md:space-y-0 md:flex md:items-center md:justify-center md:space-x-4">
                         <button id="confirm-reset-btn" class="w-full md:w-auto px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            Yes, Reset Everything
+                            Yes, Reset Database
                         </button>
                         <button id="cancel-reset-btn" class="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-900 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
                             Cancel
@@ -406,6 +414,7 @@ def index():
             <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
                 <div class="mt-3 text-center">
                     <h3 class="text-lg leading-6 font-medium text-gray-900">Latest Boot Logs</h3>
+                    <p id="boot-log-date" class="text-sm text-gray-500 mb-2"></p>
                     <div class="mt-2 px-7 py-3">
                         <div id="boot-logs-content" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left">
                             <!-- Boot logs will be loaded here -->
@@ -413,6 +422,30 @@ def index():
                     </div>
                     <div class="items-center px-4 py-3">
                         <button id="close-boot-logs-btn" class="w-full px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Filtered Logs -->
+        <div id="filter-logs-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+                <div class="mt-3 text-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Filter Logs by Tag</h3>
+                    <div class="mt-4">
+                        <select id="tag-dropdown" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="">Select a Tag</option>
+                        </select>
+                    </div>
+                    <div class="mt-4 px-7 py-3">
+                        <div id="filtered-logs-content" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left">
+                            <!-- Filtered logs will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="items-center px-4 py-3">
+                        <button id="close-filter-logs-btn" class="w-full px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             Close
                         </button>
                     </div>
@@ -520,80 +553,257 @@ def index():
             });
 
             // --- Reset Logic ---
-            const resetButton = document.getElementById('reset-button');
+            const resetDatabaseButton = document.getElementById('reset-database-button');
+            console.log('resetDatabaseButton:', resetDatabaseButton);
             const modal = document.getElementById('reset-modal');
+            console.log('modal:', modal);
             const confirmBtn = document.getElementById('confirm-reset-btn');
+            console.log('confirmBtn:', confirmBtn);
             const cancelBtn = document.getElementById('cancel-reset-btn');
+            console.log('cancelBtn:', cancelBtn);
 
             const showBootLogsButton = document.getElementById('show-boot-logs-button');
+            console.log('showBootLogsButton:', showBootLogsButton);
             const bootLogsModal = document.getElementById('boot-logs-modal');
+            console.log('bootLogsModal:', bootLogsModal);
             const closeBootLogsBtn = document.getElementById('close-boot-logs-btn');
+            console.log('closeBootLogsBtn:', closeBootLogsBtn);
             const bootLogsContent = document.getElementById('boot-logs-content');
+            console.log('bootLogsContent:', bootLogsContent);
+            const bootLogDate = document.getElementById('boot-log-date');
+            console.log('bootLogDate:', bootLogDate);
 
-            resetButton.addEventListener('click', () => {
-                modal.classList.remove('hidden');
-            });
+            const restartDeviceButton = document.getElementById('restart-device-button');
+            console.log('restartDeviceButton:', restartDeviceButton);
 
-            cancelBtn.addEventListener('click', () => {
-                modal.classList.add('hidden');
-            });
+            const filterLogsButton = document.getElementById('filter-logs-button');
+            console.log('filterLogsButton:', filterLogsButton);
+            const filterLogsModal = document.getElementById('filter-logs-modal');
+            console.log('filterLogsModal:', filterLogsModal);
+            const closeFilterLogsBtn = document.getElementById('close-filter-logs-btn');
+            console.log('closeFilterLogsBtn:', closeFilterLogsBtn);
+            const tagDropdown = document.getElementById('tag-dropdown');
+            console.log('tagDropdown:', tagDropdown);
+            const filteredLogsContent = document.getElementById('filtered-logs-content');
+            console.log('filteredLogsContent:', filteredLogsContent);
 
-            confirmBtn.addEventListener('click', () => {
-                fetch('/reset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    modal.classList.add('hidden');
-                    if(data.success) {
-                        console.log('Reset successful');
-                        fetchStats(); // Immediately update the stats on the page
-                        logLevels.forEach(level => {
-                             const feed = document.getElementById(`${level.toLowerCase()}-log-feed`);
-                             feed.innerHTML = `<p class="text-gray-500">No ${level.toLowerCase()} logs.</p>`;
-                        });
-                    } else {
-                        console.error('An error occurred during reset: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    modal.classList.add('hidden');
-                    console.error('Error:', error);
+            if (resetDatabaseButton) {
+                resetDatabaseButton.addEventListener('click', () => {
+                    console.log('Reset Database button clicked');
+                    modal.classList.remove('hidden');
                 });
-            });
+            } else {
+                console.error('resetDatabaseButton not found!');
+            }
 
-            showBootLogsButton.addEventListener('click', () => {
-                fetch('/boot_logs')
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    console.log('Cancel button clicked');
+                    modal.classList.add('hidden');
+                });
+            } else {
+                console.error('cancelBtn not found!');
+            }
+
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    console.log('Confirm Reset button clicked');
+                    fetch('/reset', { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
-                        bootLogsContent.innerHTML = '';
-                        if (data.boot_logs && data.boot_logs.length > 0) {
-                            data.boot_logs.forEach(log => {
-                                bootLogsContent.innerHTML += `<div>${log}</div>`;
+                        modal.classList.add('hidden');
+                        if(data.success) {
+                            console.log('Reset successful');
+                            fetchStats(); // Immediately update the stats on the page
+                            logLevels.forEach(level => {
+                                 const feed = document.getElementById(`${level.toLowerCase()}-log-feed`);
+                                 feed.innerHTML = `<p class="text-gray-500">No ${level.toLowerCase()} logs.</p>`;
                             });
                         } else {
-                            bootLogsContent.innerHTML = '<p class="text-gray-500">No boot logs available.</p>';
+                            console.error('An error occurred during reset: ' + data.message);
                         }
-                        bootLogsModal.classList.remove('hidden');
                     })
                     .catch(error => {
-                        console.error('Error fetching boot logs:', error);
-                        bootLogsContent.innerHTML = '<p class="text-red-500">Error loading boot logs.</p>';
-                        bootLogsModal.classList.remove('hidden');
+                        modal.classList.add('hidden');
+                        console.error('Error:', error);
                     });
-            });
+                });
+            } else {
+                console.error('confirmBtn not found!');
+            }
 
-            closeBootLogsBtn.addEventListener('click', () => {
-                bootLogsModal.classList.add('hidden');
-            });
+            if (showBootLogsButton) {
+                showBootLogsButton.addEventListener('click', () => {
+                    console.log('Show Boot Logs button clicked');
+                    fetch('/boot_logs')
+                        .then(response => response.json())
+                        .then(data => {
+                            bootLogsContent.innerHTML = '';
+                            if (data.boot_logs && data.boot_logs.length > 0) {
+                                data.boot_logs.forEach(log => {
+                                    bootLogsContent.innerHTML += `<div>${log}</div>`;
+                                });
+                            } else {
+                                bootLogsContent.innerHTML = '<p class="text-gray-500">No boot logs available.</p>';
+                            }
+                            if (data.boot_timestamp) {
+                                bootLogDate.textContent = `Boot Time: ${data.boot_timestamp}`;
+                            } else {
+                                bootLogDate.textContent = '';
+                            }
+                            bootLogsModal.classList.remove('hidden');
+                        })
+                        .catch(error => {
+                            console.error('Error fetching boot logs:', error);
+                            bootLogsContent.innerHTML = '<p class="text-red-500">Error loading boot logs.</p>';
+                            bootLogsModal.classList.remove('hidden');
+                        });
+                });
+            } else {
+                console.error('showBootLogsButton not found!');
+            }
+
+            if (closeBootLogsBtn) {
+                closeBootLogsBtn.addEventListener('click', () => {
+                    console.log('Close Boot Logs button clicked');
+                    bootLogsModal.classList.add('hidden');
+                });
+            } else {
+                console.error('closeBootLogsBtn not found!');
+            }
+
+            if (restartDeviceButton) {
+                restartDeviceButton.addEventListener('click', () => {
+                    console.log('Restart Device button clicked');
+                    fetch('/restart_device', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.success) {
+                            console.log('Device restart initiated.');
+                        } else {
+                            console.error('Error initiating device restart: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                });
+            } else {
+                console.error('restartDeviceButton not found!');
+            }
+
+            if (filterLogsButton) {
+                filterLogsButton.addEventListener('click', () => {
+                    console.log('Filter Logs button clicked');
+                    filterLogsModal.classList.remove('hidden');
+                    fetch('/tags')
+                        .then(response => response.json())
+                        .then(tags => {
+                            tagDropdown.innerHTML = '<option value="">Select a Tag</option>';
+                            tags.forEach(tag => {
+                                tagDropdown.innerHTML += `<option value="${tag}">${tag}</option>`;
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error fetching tags:', error);
+                        });
+                });
+            } else {
+                console.error('filterLogsButton not found!');
+            }
+
+            if (closeFilterLogsBtn) {
+                closeFilterLogsBtn.addEventListener('click', () => {
+                    console.log('Close Filter Logs button clicked');
+                    filterLogsModal.classList.add('hidden');
+                    filteredLogsContent.innerHTML = ''; // Clear content when closing
+                    tagDropdown.value = ''; // Reset dropdown
+                });
+            } else {
+                console.error('closeFilterLogsBtn not found!');
+            }
+
+            if (tagDropdown) {
+                tagDropdown.addEventListener('change', (event) => {
+                    const selectedTag = event.target.value;
+                    if (selectedTag) {
+                        console.log(`Tag selected: ${selectedTag}`);
+                        fetch(`/filtered_logs/${selectedTag}`)
+                            .then(response => response.json())
+                            .then(logs => {
+                                filteredLogsContent.innerHTML = '';
+                                if (logs.length > 0) {
+                                    logs.forEach(log => {
+                                        filteredLogsContent.innerHTML += `<div>(${log.timestamp}) ${log.tag}: ${log.message}</div>`;
+                                    });
+                                } else {
+                                    filteredLogsContent.innerHTML = '<p class="text-gray-500">No logs found for this tag.</p>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching filtered logs:', error);
+                                filteredLogsContent.innerHTML = '<p class="text-red-500">Error loading filtered logs.</p>';
+                            });
+                    } else {
+                        filteredLogsContent.innerHTML = ''; // Clear if no tag selected
+                    }
+                });
+            } else {
+                console.error('tagDropdown not found!');
+            }
         </script>
     </body>
     </html>
     """
     return render_template_string(html_template)
 
+@app.route('/tags')
+def get_unique_tags():
+    """Returns all unique tags from the database."""
+    with sqlite3.connect(DATABASE_FILE, check_same_thread=False) as conn:
+        cursor = conn.cursor()
+        # Get unique tags from all log level tables
+        tags = set()
+        for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
+            cursor.execute(f'SELECT DISTINCT tag FROM {level}')
+            for row in cursor.fetchall():
+                tags.add(row[0])
+    return jsonify(list(tags))
+
+@app.route('/filtered_logs/<tag>')
+def get_filtered_logs(tag):
+    """Returns the last 10 log messages for a specific tag across all levels."""
+    logs = []
+    with sqlite3.connect(DATABASE_FILE, check_same_thread=False) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
+            query = f"SELECT timestamp, tag, message FROM {level} WHERE tag = ? ORDER BY received_at DESC LIMIT 10"
+            cursor.execute(query, (tag,))
+            logs.extend([dict(row) for row in cursor.fetchall()])
+    
+    # Sort logs by received_at to ensure chronological order across levels
+    logs.sort(key=lambda x: x['received_at'])
+    return jsonify(logs)
+
+@app.route('/restart_device', methods=['POST'])
+def restart_device():
+    """Restarts the connected ESP32 device."""
+    global esp32_connection_status
+    if esp32_connection_status["connected"] and esp32_connection_status["port"]:
+        try:
+            # This will trigger a new boot sequence and log capture
+            reset_esp32(esp32_connection_status["port"])
+            return jsonify(success=True, message="Device restart initiated.")
+        except Exception as e:
+            return jsonify(success=False, message=f"Error restarting device: {e}"), 500
+    else:
+        return jsonify(success=False, message="No ESP32 device connected."), 400
+
 @app.route('/boot_logs')
 def get_boot_logs():
     """Returns the latest boot logs."""
-    return jsonify(boot_logs=esp32_connection_status["boot_logs"])
+    return jsonify(boot_logs=esp32_connection_status["boot_logs"], boot_timestamp=esp32_connection_status["boot_timestamp"])
 
 @app.route('/connection_status')
 def get_connection_status():
