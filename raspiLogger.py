@@ -7,13 +7,19 @@ import re
 import sqlite3
 import threading
 import time
+import sys
+import tempfile
 from datetime import datetime
 
 import serial
-import pyudev
-from flask import Flask, render_template_string, jsonify, send_file
+import serial.tools.list_ports
+from flask import Flask, render_template, jsonify, send_file
 
 import subprocess
+
+# Conditional import for pyudev (Linux only)
+if sys.platform.startswith('linux'):
+    import pyudev
 
 # --- Configuration ---
 DATABASE_FILE = 'esp32_logs.db'
@@ -46,7 +52,7 @@ esp32_connection_status = {
 }
 
 # --- Flask Web App ---
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # --- Database Setup ---
 def init_db():
@@ -250,510 +256,102 @@ def monitor_serial_port(device_path):
 
 # --- udev Device Detection ---
 def device_event_handler():
-    """Monitors for USB device connections and disconnections."""
-    context = pyudev.Context()
-    monitor = pyudev.Monitor.from_netlink(context)
-    monitor.filter_by(subsystem='tty')
-    
-    print("Starting USB device monitor...")
-    
-    # Check for already connected devices on startup
-    for device in context.list_devices(subsystem='tty'):
-        for supported_device in SUPPORTED_DEVICES:
-            if device.get('ID_VENDOR_ID') == supported_device["vendor_id"] and device.get('ID_MODEL_ID') == supported_device["product_id"]:
-                print(f"Found pre-existing ESP32 at {device.device_node}")
-                threading.Thread(target=monitor_serial_port, args=(device.device_node,), daemon=True).start()
-                break  # Move to the next device
-
-    # Monitor for new connections
-    for action, device in monitor:
-        print(f"New device detected: {device.device_node}")
-        if action == 'add' and 'ID_VENDOR_ID' in device and 'ID_MODEL_ID' in device:
-            for supported_device in SUPPORTED_DEVICES:
-                if device['ID_VENDOR_ID'] == supported_device["vendor_id"] and device['ID_MODEL_ID'] == supported_device["product_id"]:
-                    print(f"ESP32 connected at {device.device_node}")
-                    # Give the system a moment to stabilize the device node
-                    time.sleep(1)
-                    threading.Thread(target=monitor_serial_port, args=(device.device_node,), daemon=True).start()
-                    break # Move to the next device
-        elif action == 'remove':
-            if device.device_node == esp32_connection_status["port"]:
-                print(f"ESP32 disconnected from {device.device_node}")
-                esp32_connection_status["connected"] = False
-                esp32_connection_status["port"] = None
-                esp32_connection_status["device_info"] = {
-                    "chip_type": None,
-                    "features": None,
-                    "mac_address": None,
-                    "usb_mode": None,
-                    "app_version": None,
-                    "project_name": None,
-                    "reset_reason": None,
-                    "compile_time": None,
-                    "esp_idf_version": None
-                }
-                esp32_connection_status["boot_logs"] = []
+    """Monitors for USB device connections and disconnections (Linux) or periodically scans (Windows)."""
+    if sys.platform.startswith('linux'):
+        context = pyudev.Context()
+        monitor = pyudev.Monitor.from_netlink(context)
+        monitor.filter_by(subsystem='tty')
         
-        # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
+        print("Starting USB device monitor (Linux udev)...")
+        
+        # Check for already connected devices on startup
+        for device in context.list_devices(subsystem='tty'):
+            for supported_device in SUPPORTED_DEVICES:
+                if device.get('ID_VENDOR_ID') == supported_device["vendor_id"] and device.get('ID_MODEL_ID') == supported_device["product_id"]:
+                    print(f"Found pre-existing ESP32 at {device.device_node}")
+                    threading.Thread(target=monitor_serial_port, args=(device.device_node,), daemon=True).start()
+                    break  # Move to the next device
+
+        # Monitor for new connections
+        for action, device in monitor:
+            print(f"New device detected: {device.device_node}")
+            if action == 'add' and 'ID_VENDOR_ID' in device and 'ID_MODEL_ID' in device:
+                for supported_device in SUPPORTED_DEVICES:
+                    if device['ID_VENDOR_ID'] == supported_device["vendor_id"] and device['ID_MODEL_ID'] == supported_device["product_id"]:
+                        print(f"ESP32 connected at {device.device_node}")
+                        # Give the system a moment to stabilize the device node
+                        time.sleep(1)
+                        threading.Thread(target=monitor_serial_port, args=(device.device_node,), daemon=True).start()
+                        break # Move to the next device
+            elif action == 'remove':
+                if device.device_node == esp32_connection_status["port"]:
+                    print(f"ESP32 disconnected from {device.device_node}")
+                    esp32_connection_status["connected"] = False
+                    esp32_connection_status["port"] = None
+                    esp32_connection_status["device_info"] = {
+                        "chip_type": None,
+                        "features": None,
+                        "mac_address": None,
+                        "usb_mode": None,
+                        "app_version": None,
+                        "project_name": None,
+                        "reset_reason": None,
+                        "compile_time": None,
+                        "esp_idf_version": None
+                    }
+                    esp32_connection_status["boot_logs"] = []
+                    esp32_connection_status["boot_timestamp"] = None
+            
+            # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
+    else: # Windows or other non-Linux OS
+        print("Starting USB device monitor (Windows/Generic)...")
+        connected_ports = {}
+
+        def scan_ports():
+            nonlocal connected_ports
+            while True:
+                current_ports = {}
+                for p in serial.tools.list_ports.comports():
+                    for supported_device in SUPPORTED_DEVICES:
+                        if p.vid and p.pid and f'{p.vid:04x}' == supported_device["vendor_id"] and f'{p.pid:04x}' == supported_device["product_id"]:
+                            if p.device not in connected_ports:
+                                print(f"Found ESP32 at {p.device}")
+                                threading.Thread(target=monitor_serial_port, args=(p.device,), daemon=True).start()
+                                connected_ports[p.device] = True
+                            current_ports[p.device] = True
+                
+                # Remove disconnected ports
+                disconnected_ports = [port for port in connected_ports if port not in current_ports]
+                for port in disconnected_ports:
+                    print(f"ESP32 disconnected from {port}")
+                    if port == esp32_connection_status["port"]:
+                        esp32_connection_status["connected"] = False
+                        esp32_connection_status["port"] = None
+                        esp32_connection_status["device_info"] = {
+                            "chip_type": None,
+                            "features": None,
+                            "mac_address": None,
+                            "usb_mode": None,
+                            "app_version": None,
+                            "project_name": None,
+                            "reset_reason": None,
+                            "compile_time": None,
+                            "esp_idf_version": None
+                        }
+                        esp32_connection_status["boot_logs"] = []
+                        esp32_connection_status["boot_timestamp"] = None
+                    del connected_ports[port]
+
+                time.sleep(3) # Scan every 3 seconds
+
+        threading.Thread(target=scan_ports, daemon=True).start()
 
 # --- Flask Web Routes ---
 @app.route('/')
 def index():
     """Serves the main dashboard page."""
     html_template = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>TurboMon</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-            body { font-family: 'Inter', sans-serif; }
-        </style>
-    </head>
-    <body class="bg-gray-100 text-gray-800">
-        <div class="container mx-auto p-4 md:p-8">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">TurboMonitor</h1>
-                <div id="connection-status" class="flex items-center">
-                    <div id="connection-indicator" class="h-4 w-4 rounded-full mr-2"></div>
-                    <span id="connection-text"></span>
-                    <div id="device-info" class="ml-4 text-sm text-gray-500"></div>
-                </div>
-            </div>
-            
-            <div id="stats-container" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-                <!-- Stats will be loaded here by JavaScript -->
-            </div>
-
-            <h2 class="text-2xl font-semibold mb-4 text-gray-900">Live Log Feeds</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-                <!-- Debug Column -->
-                <div>
-                    <h3 class="text-lg font-medium mb-2 text-blue-600">Debug</h3>
-                    <div id="debug-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
-                        <p class="text-gray-500">Waiting for logs...</p>
-                    </div>
-                </div>
-                <!-- Info Column -->
-                <div>
-                    <h3 class="text-lg font-medium mb-2 text-green-600">Info</h3>
-                    <div id="info-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
-                         <p class="text-gray-500">Waiting for logs...</p>
-                    </div>
-                </div>
-                <!-- Warning Column -->
-                <div>
-                    <h3 class="text-lg font-medium mb-2 text-yellow-600">Warning</h3>
-                    <div id="warning-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
-                         <p class="text-gray-500">Waiting for logs...</p>
-                    </div>
-                </div>
-                <!-- Error Column -->
-                <div>
-                    <h3 class="text-lg font-medium mb-2 text-red-600">Error</h3>
-                    <div id="error-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
-                         <p class="text-gray-500">Waiting for logs...</p>
-                    </div>
-                </div>
-            </div>
-
-            <h2 class="text-2xl font-semibold mb-4 text-gray-900">Download Logs</h2>
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <a href="/download/DEBUG" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download DEBUG</a>
-                    <a href="/download/INFO" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download INFO</a>
-                    <a href="/download/WARNING" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download WARNING</a>
-                    <a href="/download/ERROR" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download ERROR</a>
-                </div>
-            </div>
-
-            <h2 class="text-2xl font-semibold mb-4 mt-8 text-gray-900">Maintenance</h2>
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="flex flex-wrap gap-4">
-                    <button id="reset-database-button" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300">Reset Database</button>
-                    <button id="show-boot-logs-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Show Boot Logs</button>
-                    <button id="restart-device-button" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded transition duration-300">Restart Device</button>
-                    <button id="filter-logs-button" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded transition duration-300">Filter Logs by Tag</button>
-                </div>
-                <p class="text-sm text-gray-600 mt-2">This will permanently delete all stored logs and reset all counters.</p>
-            </div>
-        </div>
-
-        <!-- Modal for confirmation -->
-        <div id="reset-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-            <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-                <div class="mt-3 text-center">
-                    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                        <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Reset Database?</h3>
-                    <div class="mt-2 px-7 py-3">
-                        <p class="text-sm text-gray-500">
-                            Are you sure? All stored logs and statistics will be permanently deleted. This action cannot be undone.
-                        </p>
-                    </div>
-                    <div class="items-center px-4 py-3 space-y-2 md:space-y-0 md:flex md:items-center md:justify-center md:space-x-4">
-                        <button id="confirm-reset-btn" class="w-full md:w-auto px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            Yes, Reset Database
-                        </button>
-                        <button id="cancel-reset-btn" class="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-900 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal for Boot Logs -->
-        <div id="boot-logs-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-            <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-                <div class="mt-3 text-center">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Latest Boot Logs</h3>
-                    <p id="boot-log-date" class="text-sm text-gray-500 mb-2"></p>
-                    <div class="mt-2 px-7 py-3">
-                        <div id="boot-logs-content" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left">
-                            <!-- Boot logs will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="items-center px-4 py-3">
-                        <button id="close-boot-logs-btn" class="w-full px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal for Filtered Logs -->
-        <div id="filter-logs-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-            <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-                <div class="mt-3 text-center">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900">Filter Logs by Tag</h3>
-                    <div class="mt-4">
-                        <select id="tag-dropdown" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                            <option value="">Select a Tag</option>
-                        </select>
-                    </div>
-                    <div class="mt-4 px-7 py-3">
-                        <div id="filtered-logs-content" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left">
-                            <!-- Filtered logs will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="items-center px-4 py-3">
-                        <button id="close-filter-logs-btn" class="w-full px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
-
-            function fetchConnectionStatus() {
-                fetch('/connection_status')
-                    .then(response => response.json())
-                    .then(data => {
-                        const indicator = document.getElementById('connection-indicator');
-                        const text = document.getElementById('connection-text');
-                        const deviceInfo = document.getElementById('device-info');
-                        if (data.connected) {
-                            indicator.classList.remove('bg-red-500');
-                            indicator.classList.add('bg-green-500');
-                            text.textContent = `Connected at ${data.port}`;
-                            let deviceInfoHTML = '';
-                            if(data.device_info) {
-                                deviceInfoHTML += `<div class="grid grid-cols-2 gap-x-4">`;
-                                if (data.device_info.chip_type) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">Chip Type:</span> ${data.device_info.chip_type}</div>`;
-                                }
-                                if (data.device_info.features) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">Features:</span> ${data.device_info.features}</div>`;
-                                }
-                                if (data.device_info.mac_address) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">MAC Address:</span> ${data.device_info.mac_address}</div>`;
-                                }
-                                if (data.device_info.app_version) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">App Version:</span> ${data.device_info.app_version}</div>`;
-                                }
-                                if (data.device_info.project_name) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">Project Name:</span> ${data.device_info.project_name}</div>`;
-                                }
-                                if (data.device_info.reset_reason) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">Reset Reason:</span> ${data.device_info.reset_reason}</div>`;
-                                }
-                                if (data.device_info.compile_time) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">Compile Time:</span> ${data.device_info.compile_time}</div>`;
-                                }
-                                if (data.device_info.esp_idf_version) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">ESP-IDF Version:</span> ${data.device_info.esp_idf_version}</div>`;
-                                }
-                                deviceInfoHTML += `</div>`;
-                            }
-                            deviceInfo.innerHTML = deviceInfoHTML;
-                        } else {
-                            indicator.classList.remove('bg-green-500');
-                            indicator.classList.add('bg-red-500');
-                            text.textContent = 'Disconnected';
-                            deviceInfo.innerHTML = '';
-                        }
-                    });
-            }
-
-            function fetchStats() {
-                fetch('/stats')
-                    .then(response => response.json())
-                    .then(data => {
-                        const container = document.getElementById('stats-container');
-                        container.innerHTML = `
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-gray-500">Total Msgs</p><p class="text-2xl font-bold">${data.total_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-blue-500">Debug</p><p class="text-2xl font-bold">${data.debug_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-green-500">Info</p><p class="text-2xl font-bold">${data.info_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-yellow-500">Warning</p><p class="text-2xl font-bold">${data.warning_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-red-500">Error</p><p class="text-2xl font-bold">${data.error_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-gray-500">Other</p><p class="text-2xl font-bold">${data.other_messages || 0}</p></div>
-                        `;
-                    });
-            }
-            
-            function fetchLogsForLevel(level) {
-                fetch(`/latest_logs/${level}`)
-                    .then(response => response.json())
-                    .then(logs => {
-                        const feed = document.getElementById(`${level.toLowerCase()}-log-feed`);
-                        if (logs.length === 0) {
-                            feed.innerHTML = `<p class="text-gray-500">No ${level.toLowerCase()} logs.</p>`;
-                            return;
-                        }
-                        
-                        let logHTML = '';
-                        logs.forEach(log => {
-                            logHTML += `<div class="log-entry whitespace-nowrap overflow-hidden text-ellipsis">(${log.timestamp}) ${log.tag}: ${log.message}</div>`;
-                        });
-                        feed.innerHTML = logHTML;
-                    });
-            }
-
-            // Fetch initial data on page load
-            fetchConnectionStatus();
-            fetchStats();
-            logLevels.forEach(level => fetchLogsForLevel(level));
-            
-            // Set intervals to fetch data periodically
-            setInterval(fetchConnectionStatus, 5000);
-            setInterval(fetchStats, 5000);
-            logLevels.forEach(level => {
-                setInterval(() => fetchLogsForLevel(level), 3000);
-            });
-
-            // --- Reset Logic ---
-            const resetDatabaseButton = document.getElementById('reset-database-button');
-            console.log('resetDatabaseButton:', resetDatabaseButton);
-            const modal = document.getElementById('reset-modal');
-            console.log('modal:', modal);
-            const confirmBtn = document.getElementById('confirm-reset-btn');
-            console.log('confirmBtn:', confirmBtn);
-            const cancelBtn = document.getElementById('cancel-reset-btn');
-            console.log('cancelBtn:', cancelBtn);
-
-            const showBootLogsButton = document.getElementById('show-boot-logs-button');
-            console.log('showBootLogsButton:', showBootLogsButton);
-            const bootLogsModal = document.getElementById('boot-logs-modal');
-            console.log('bootLogsModal:', bootLogsModal);
-            const closeBootLogsBtn = document.getElementById('close-boot-logs-btn');
-            console.log('closeBootLogsBtn:', closeBootLogsBtn);
-            const bootLogsContent = document.getElementById('boot-logs-content');
-            console.log('bootLogsContent:', bootLogsContent);
-            const bootLogDate = document.getElementById('boot-log-date');
-            console.log('bootLogDate:', bootLogDate);
-
-            const restartDeviceButton = document.getElementById('restart-device-button');
-            console.log('restartDeviceButton:', restartDeviceButton);
-
-            const filterLogsButton = document.getElementById('filter-logs-button');
-            console.log('filterLogsButton:', filterLogsButton);
-            const filterLogsModal = document.getElementById('filter-logs-modal');
-            console.log('filterLogsModal:', filterLogsModal);
-            const closeFilterLogsBtn = document.getElementById('close-filter-logs-btn');
-            console.log('closeFilterLogsBtn:', closeFilterLogsBtn);
-            const tagDropdown = document.getElementById('tag-dropdown');
-            console.log('tagDropdown:', tagDropdown);
-            const filteredLogsContent = document.getElementById('filtered-logs-content');
-            console.log('filteredLogsContent:', filteredLogsContent);
-
-            if (resetDatabaseButton) {
-                resetDatabaseButton.addEventListener('click', () => {
-                    console.log('Reset Database button clicked');
-                    modal.classList.remove('hidden');
-                });
-            } else {
-                console.error('resetDatabaseButton not found!');
-            }
-
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', () => {
-                    console.log('Cancel button clicked');
-                    modal.classList.add('hidden');
-                });
-            } else {
-                console.error('cancelBtn not found!');
-            }
-
-            if (confirmBtn) {
-                confirmBtn.addEventListener('click', () => {
-                    console.log('Confirm Reset button clicked');
-                    fetch('/reset', { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        modal.classList.add('hidden');
-                        if(data.success) {
-                            console.log('Reset successful');
-                            fetchStats(); // Immediately update the stats on the page
-                            logLevels.forEach(level => {
-                                 const feed = document.getElementById(`${level.toLowerCase()}-log-feed`);
-                                 feed.innerHTML = `<p class="text-gray-500">No ${level.toLowerCase()} logs.</p>`;
-                            });
-                        } else {
-                            console.error('An error occurred during reset: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        modal.classList.add('hidden');
-                        console.error('Error:', error);
-                    });
-                });
-            } else {
-                console.error('confirmBtn not found!');
-            }
-
-            if (showBootLogsButton) {
-                showBootLogsButton.addEventListener('click', () => {
-                    console.log('Show Boot Logs button clicked');
-                    fetch('/boot_logs')
-                        .then(response => response.json())
-                        .then(data => {
-                            bootLogsContent.innerHTML = '';
-                            if (data.boot_logs && data.boot_logs.length > 0) {
-                                data.boot_logs.forEach(log => {
-                                    bootLogsContent.innerHTML += `<div>${log}</div>`;
-                                });
-                            } else {
-                                bootLogsContent.innerHTML = '<p class="text-gray-500">No boot logs available.</p>';
-                            }
-                            if (data.boot_timestamp) {
-                                bootLogDate.textContent = `Boot Time: ${data.boot_timestamp}`;
-                            } else {
-                                bootLogDate.textContent = '';
-                            }
-                            bootLogsModal.classList.remove('hidden');
-                        })
-                        .catch(error => {
-                            console.error('Error fetching boot logs:', error);
-                            bootLogsContent.innerHTML = '<p class="text-red-500">Error loading boot logs.</p>';
-                            bootLogsModal.classList.remove('hidden');
-                        });
-                });
-            } else {
-                console.error('showBootLogsButton not found!');
-            }
-
-            if (closeBootLogsBtn) {
-                closeBootLogsBtn.addEventListener('click', () => {
-                    console.log('Close Boot Logs button clicked');
-                    bootLogsModal.classList.add('hidden');
-                });
-            } else {
-                console.error('closeBootLogsBtn not found!');
-            }
-
-            if (restartDeviceButton) {
-                restartDeviceButton.addEventListener('click', () => {
-                    console.log('Restart Device button clicked');
-                    fetch('/restart_device', { method: 'POST' })
-                    .then(response => response.json())
-                    .then(data => {
-                        if(data.success) {
-                            console.log('Device restart initiated.');
-                        } else {
-                            console.error('Error initiating device restart: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
-                });
-            } else {
-                console.error('restartDeviceButton not found!');
-            }
-
-            if (filterLogsButton) {
-                filterLogsButton.addEventListener('click', () => {
-                    console.log('Filter Logs button clicked');
-                    filterLogsModal.classList.remove('hidden');
-                    fetch('/tags')
-                        .then(response => response.json())
-                        .then(tags => {
-                            tagDropdown.innerHTML = '<option value="">Select a Tag</option>';
-                            tags.forEach(tag => {
-                                tagDropdown.innerHTML += `<option value="${tag}">${tag}</option>`;
-                            });
-                        })
-                        .catch(error => {
-                            console.error('Error fetching tags:', error);
-                        });
-                });
-            } else {
-                console.error('filterLogsButton not found!');
-            }
-
-            if (closeFilterLogsBtn) {
-                closeFilterLogsBtn.addEventListener('click', () => {
-                    console.log('Close Filter Logs button clicked');
-                    filterLogsModal.classList.add('hidden');
-                    filteredLogsContent.innerHTML = ''; // Clear content when closing
-                    tagDropdown.value = ''; // Reset dropdown
-                });
-            } else {
-                console.error('closeFilterLogsBtn not found!');
-            }
-
-            if (tagDropdown) {
-                tagDropdown.addEventListener('change', (event) => {
-                    const selectedTag = event.target.value;
-                    if (selectedTag) {
-                        console.log(`Tag selected: ${selectedTag}`);
-                        fetch(`/filtered_logs/${selectedTag}`)
-                            .then(response => response.json())
-                            .then(logs => {
-                                filteredLogsContent.innerHTML = '';
-                                if (logs.length > 0) {
-                                    logs.forEach(log => {
-                                        filteredLogsContent.innerHTML += `<div>(${log.timestamp}) ${log.tag}: ${log.message}</div>`;
-                                    });
-                                } else {
-                                    filteredLogsContent.innerHTML = '<p class="text-gray-500">No logs found for this tag.</p>';
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error fetching filtered logs:', error);
-                                filteredLogsContent.innerHTML = '<p class="text-red-500">Error loading filtered logs.</p>';
-                            });
-                    } else {
-                        filteredLogsContent.innerHTML = ''; // Clear if no tag selected
-                    }
-                });
-            } else {
-                console.error('tagDropdown not found!');
-            }
-        </script>
-    </body>
-    </html>
+    return render_template('index.html')
     """
     return render_template_string(html_template)
 
@@ -854,7 +452,7 @@ def download_logs(level):
     if level not in allowed_levels:
         return "Invalid log level", 404
 
-    filename = f"/tmp/esp32_{level.lower()}_logs.csv"
+    filename = os.path.join(tempfile.gettempdir(), f"esp32_{level.lower()}_logs.csv")
     
     with sqlite3.connect(DATABASE_FILE, check_same_thread=False) as conn:
         cursor = conn.cursor()
