@@ -35,11 +35,13 @@ esp32_connection_status = {
         "chip_type": None,
         "features": None,
         "mac_address": None,
-        "usb_mode": None,
         "app_version": None,
         "project_name": None,
-        "reset_reason": None
-    }
+        "reset_reason": None,
+        "compile_time": None,
+        "esp_idf_version": None
+    },
+    "boot_logs": []
 }
 
 # --- Flask Web App ---
@@ -166,14 +168,24 @@ def monitor_serial_port(device_path):
         with serial.Serial(device_path, SERIAL_BAUDRATE, timeout=1) as ser:
             esp32_connection_status["connected"] = True
             esp32_connection_status["port"] = device_path
+            esp32_connection_status["boot_logs"] = [] # Clear previous boot logs on new connection
             print(f"Successfully opened {device_path}. Waiting for messages...")
             reset_esp32(device_path)
             time.sleep(2) # Wait for the device to boot
+            
+            is_booting = True
             while True:
                 try:
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if line:
                         print(f"Received line: {line}")
+                        
+                        if is_booting:
+                            esp32_connection_status["boot_logs"].append(line)
+                            if "main_task: Calling app_main()" in line:
+                                is_booting = False
+                                print("App main started. Switching to normal logging.")
+
                         app_version_match = re.search(r"App version: (.*?)\x1b", line)
                         if app_version_match:
                             esp32_connection_status["device_info"]["app_version"] = app_version_match.group(1).strip()
@@ -186,27 +198,44 @@ def monitor_serial_port(device_path):
                         if reset_reason_match:
                             esp32_connection_status["device_info"]["reset_reason"] = reset_reason_match.group(1).strip()
 
-                        if "USB-CDC" in line:
-                            esp32_connection_status["device_info"]["usb_mode"] = "USB-CDC"
-                        parsed_log = parse_log_message(line)
-                        if parsed_log:
-                            print(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
-                            add_log_entry(
-                                parsed_log['level'],
-                                parsed_log['timestamp'],
-                                parsed_log['tag'],
-                                parsed_log['message']
-                            )
-                        else:
-                            # This is not a standard log message
-                            update_other_messages_stat()
-                            print(f"Non-log message: {line}")
+                        compile_time_match = re.search(r"Compile time: (.*?)\x1b", line)
+                        if compile_time_match:
+                            esp32_connection_status["device_info"]["compile_time"] = compile_time_match.group(1).strip()
+
+                        esp_idf_version_match = re.search(r"ESP-IDF version: (.*?)\x1b", line)
+                        if esp_idf_version_match:
+                            esp32_connection_status["device_info"]["esp_idf_version"] = esp_idf_version_match.group(1).strip()
+
+                        if not is_booting: # Only add to info logs if not in boot sequence
+                            parsed_log = parse_log_message(line)
+                            if parsed_log:
+                                print(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
+                                add_log_entry(
+                                    parsed_log['level'],
+                                    parsed_log['timestamp'],
+                                    parsed_log['tag'],
+                                    parsed_log['message']
+                                )
+                            else:
+                                # This is not a standard log message
+                                update_other_messages_stat()
+                                print(f"Non-log message: {line}")
                 except serial.SerialException:
                     print(f"Device {device_path} disconnected. Stopping monitor.")
                     esp32_connection_status["connected"] = False
                     esp32_connection_status["port"] = None
-                    esp32_connection_status["device_info"] = {}
-                    esp32_connection_status["app_version"] = None
+                    esp32_connection_status["device_info"] = {
+                        "chip_type": None,
+                        "features": None,
+                        "mac_address": None,
+                        "usb_mode": None,
+                        "app_version": None,
+                        "project_name": None,
+                        "reset_reason": None,
+                        "compile_time": None,
+                        "esp_idf_version": None
+                    }
+                    esp32_connection_status["boot_logs"] = []
                     break
                 except Exception as e:
                     print(f"An error occurred while reading from serial port: {e}")
@@ -255,8 +284,11 @@ def device_event_handler():
                     "usb_mode": None,
                     "app_version": None,
                     "project_name": None,
-                    "reset_reason": None
+                    "reset_reason": None,
+                    "compile_time": None,
+                    "esp_idf_version": None
                 }
+                esp32_connection_status["boot_logs"] = []
         
         # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
 
@@ -338,6 +370,7 @@ def index():
             <div class="bg-white p-6 rounded-lg shadow-md">
                 <button id="reset-button" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300">Reset Everything</button>
                 <p class="text-sm text-gray-600 mt-2">This will permanently delete all stored logs and reset all counters.</p>
+                <button id="show-boot-logs-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300 mt-4">Show Boot Logs</button>
             </div>
         </div>
 
@@ -362,6 +395,25 @@ def index():
                         </button>
                         <button id="cancel-reset-btn" class="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-900 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300">
                             Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Boot Logs -->
+        <div id="boot-logs-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+                <div class="mt-3 text-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Latest Boot Logs</h3>
+                    <div class="mt-2 px-7 py-3">
+                        <div id="boot-logs-content" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left">
+                            <!-- Boot logs will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="items-center px-4 py-3">
+                        <button id="close-boot-logs-btn" class="w-full px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            Close
                         </button>
                     </div>
                 </div>
@@ -394,9 +446,6 @@ def index():
                                 if (data.device_info.mac_address) {
                                     deviceInfoHTML += `<div><span class="font-semibold">MAC Address:</span> ${data.device_info.mac_address}</div>`;
                                 }
-                                if (data.device_info.usb_mode) {
-                                    deviceInfoHTML += `<div><span class="font-semibold">USB Mode:</span> ${data.device_info.usb_mode}</div>`;
-                                }
                                 if (data.device_info.app_version) {
                                     deviceInfoHTML += `<div><span class="font-semibold">App Version:</span> ${data.device_info.app_version}</div>`;
                                 }
@@ -405,6 +454,12 @@ def index():
                                 }
                                 if (data.device_info.reset_reason) {
                                     deviceInfoHTML += `<div><span class="font-semibold">Reset Reason:</span> ${data.device_info.reset_reason}</div>`;
+                                }
+                                if (data.device_info.compile_time) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">Compile Time:</span> ${data.device_info.compile_time}</div>`;
+                                }
+                                if (data.device_info.esp_idf_version) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">ESP-IDF Version:</span> ${data.device_info.esp_idf_version}</div>`;
                                 }
                                 deviceInfoHTML += `</div>`;
                             }
@@ -470,6 +525,11 @@ def index():
             const confirmBtn = document.getElementById('confirm-reset-btn');
             const cancelBtn = document.getElementById('cancel-reset-btn');
 
+            const showBootLogsButton = document.getElementById('show-boot-logs-button');
+            const bootLogsModal = document.getElementById('boot-logs-modal');
+            const closeBootLogsBtn = document.getElementById('close-boot-logs-btn');
+            const bootLogsContent = document.getElementById('boot-logs-content');
+
             resetButton.addEventListener('click', () => {
                 modal.classList.remove('hidden');
             });
@@ -499,11 +559,41 @@ def index():
                     console.error('Error:', error);
                 });
             });
+
+            showBootLogsButton.addEventListener('click', () => {
+                fetch('/boot_logs')
+                    .then(response => response.json())
+                    .then(data => {
+                        bootLogsContent.innerHTML = '';
+                        if (data.boot_logs && data.boot_logs.length > 0) {
+                            data.boot_logs.forEach(log => {
+                                bootLogsContent.innerHTML += `<div>${log}</div>`;
+                            });
+                        } else {
+                            bootLogsContent.innerHTML = '<p class="text-gray-500">No boot logs available.</p>';
+                        }
+                        bootLogsModal.classList.remove('hidden');
+                    })
+                    .catch(error => {
+                        console.error('Error fetching boot logs:', error);
+                        bootLogsContent.innerHTML = '<p class="text-red-500">Error loading boot logs.</p>';
+                        bootLogsModal.classList.remove('hidden');
+                    });
+            });
+
+            closeBootLogsBtn.addEventListener('click', () => {
+                bootLogsModal.classList.add('hidden');
+            });
         </script>
     </body>
     </html>
     """
     return render_template_string(html_template)
+
+@app.route('/boot_logs')
+def get_boot_logs():
+    """Returns the latest boot logs."""
+    return jsonify(boot_logs=esp32_connection_status["boot_logs"])
 
 @app.route('/connection_status')
 def get_connection_status():
@@ -531,10 +621,9 @@ def get_latest_logs(level):
         conn.row_factory = sqlite3.Row # Allows accessing columns by name
         cursor = conn.cursor()
         
-        query = f"SELECT timestamp, tag, message FROM {level} ORDER BY received_at DESC LIMIT 10"
+        query = f"SELECT timestamp, tag, message FROM (SELECT * FROM {level} ORDER BY received_at DESC LIMIT 10) AS subquery ORDER BY received_at ASC"
         cursor.execute(query)
         logs = [dict(row) for row in cursor.fetchall()]
-        logs.reverse()  # Reverse the list to show oldest first
     return jsonify(logs)
 
 

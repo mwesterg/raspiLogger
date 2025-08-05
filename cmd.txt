@@ -1,3 +1,7 @@
 sudo chown -R wester:wester ~/raspiLogger
 cd ~/raspiLogger/etc 
 sudo stow -v -t /etc .
+
+sudo nano /etc/systemd/journald.conf
+SystemMaxUse=50M
+sudo systemctl restart systemd-journald
