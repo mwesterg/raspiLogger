@@ -316,7 +316,7 @@ def index():
     <body class="bg-gray-100 text-gray-800">
         <div class="container mx-auto p-4 md:p-8">
             <div class="flex justify-between items-center mb-6">
-                <h1 class="text-3xl font-bold text-gray-900">ESP32 Log Dashboard</h1>
+                <h1 class="text-3xl font-bold text-gray-900">TurboMonitor</h1>
                 <div id="connection-status" class="flex items-center">
                     <div id="connection-indicator" class="h-4 w-4 rounded-full mr-2"></div>
                     <span id="connection-text"></span>
@@ -773,18 +773,27 @@ def get_unique_tags():
 @app.route('/filtered_logs/<tag>')
 def get_filtered_logs(tag):
     """Returns the last 10 log messages for a specific tag across all levels."""
-    logs = []
+    all_logs = []
     with sqlite3.connect(DATABASE_FILE, check_same_thread=False) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
-            query = f"SELECT timestamp, tag, message FROM {level} WHERE tag = ? ORDER BY received_at DESC LIMIT 10"
+            # Fetch all logs for the given tag from each table
+            query = f"SELECT timestamp, tag, message, received_at FROM {level} WHERE tag = ?"
             cursor.execute(query, (tag,))
-            logs.extend([dict(row) for row in cursor.fetchall()])
-    
-    # Sort logs by received_at to ensure chronological order across levels
-    logs.sort(key=lambda x: x['received_at'])
-    return jsonify(logs)
+            all_logs.extend([dict(row) for row in cursor.fetchall()])
+
+    # Sort all collected logs by received_at (newest first)
+    # Convert received_at strings to datetime objects for accurate sorting
+    all_logs.sort(key=lambda x: datetime.strptime(x['received_at'], '%Y-%m-%d %H:%M:%S'), reverse=True)
+
+    # Take the latest 10 logs
+    latest_10_logs = all_logs[:10]
+
+    # Sort these 10 logs by received_at (oldest first) for display in the UI
+    latest_10_logs.sort(key=lambda x: datetime.strptime(x['received_at'], '%Y-%m-%d %H:%M:%S'))
+
+    return jsonify(latest_10_logs)
 
 @app.route('/restart_device', methods=['POST'])
 def restart_device():
