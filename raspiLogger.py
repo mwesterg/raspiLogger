@@ -31,8 +31,14 @@ SUPPORTED_DEVICES = [
 esp32_connection_status = {
     "connected": False,
     "port": None,
-    "device_info": {},
-    "app_version": None
+    "device_info": {
+        "chip_type": None,
+        "features": None,
+        "mac_address": None,
+        "usb_mode": None,
+        "app_version": None,
+        "project_name": None
+    }
 }
 
 # --- Flask Web App ---
@@ -126,9 +132,20 @@ def reset_esp32(port):
     global esp32_connection_status
     try:
         print(f"Getting device info from {port} using esptool...")
-        result = subprocess.run(["esptool", "--port", port, "read_mac"], capture_output=True, text=True, check=True)
-        mac_address = result.stdout.split("MAC: ")[1].strip()
-        esp32_connection_status["device_info"]["mac_address"] = mac_address
+        result = subprocess.run(["esptool", "--port", port, "flash_id"], capture_output=True, text=True, check=True)
+        
+        # Extracting information from esptool output
+        chip_type_match = re.search(r"Detecting chip type... (.+)", result.stdout)
+        if chip_type_match:
+            esp32_connection_status["device_info"]["chip_type"] = chip_type_match.group(1).strip()
+
+        features_match = re.search(r"Features: (.+)", result.stdout)
+        if features_match:
+            esp32_connection_status["device_info"]["features"] = features_match.group(1).strip()
+
+        mac_address_match = re.search(r"MAC: (.+)", result.stdout)
+        if mac_address_match:
+            esp32_connection_status["device_info"]["mac_address"] = mac_address_match.group(1).strip()
 
         print(f"Resetting ESP32 at {port} using esptool...")
         subprocess.run(["esptool", "--port", port, "run"], check=True)
@@ -157,7 +174,11 @@ def monitor_serial_port(device_path):
                     if line:
                         print(f"Received line: {line}")
                         if "App version:" in line:
-                            esp32_connection_status["app_version"] = line.split("App version:")[1].strip()
+                            esp32_connection_status["device_info"]["app_version"] = line.split("App version:")[1].strip()
+                        if "Project name:" in line:
+                            esp32_connection_status["device_info"]["project_name"] = line.split("Project name:")[1].strip()
+                        if "USB-CDC" in line:
+                            esp32_connection_status["device_info"]["usb_mode"] = "USB-CDC"
                         parsed_log = parse_log_message(line)
                         if parsed_log:
                             print(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
@@ -218,8 +239,14 @@ def device_event_handler():
                 print(f"ESP32 disconnected from {device.device_node}")
                 esp32_connection_status["connected"] = False
                 esp32_connection_status["port"] = None
-                esp32_connection_status["device_info"] = {}
-                esp32_connection_status["app_version"] = None
+                esp32_connection_status["device_info"] = {
+                    "chip_type": None,
+                    "features": None,
+                    "mac_address": None,
+                    "usb_mode": None,
+                    "app_version": None,
+                    "project_name": None
+                }
         
         # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
 
@@ -346,11 +373,27 @@ def index():
                             indicator.classList.add('bg-green-500');
                             text.textContent = `Connected at ${data.port}`;
                             let deviceInfoHTML = '';
-                            if (data.device_info.mac_address) {
-                                deviceInfoHTML += `<span>MAC: ${data.device_info.mac_address}</span>`;
-                            }
-                            if (data.app_version) {
-                                deviceInfoHTML += `<span class="ml-4">App Version: ${data.app_version}</span>`;
+                            if(data.device_info) {
+                                deviceInfoHTML += `<div class="grid grid-cols-2 gap-x-4">`;
+                                if (data.device_info.chip_type) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">Chip Type:</span> ${data.device_info.chip_type}</div>`;
+                                }
+                                if (data.device_info.features) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">Features:</span> ${data.device_info.features}</div>`;
+                                }
+                                if (data.device_info.mac_address) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">MAC Address:</span> ${data.device_info.mac_address}</div>`;
+                                }
+                                if (data.device_info.usb_mode) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">USB Mode:</span> ${data.device_info.usb_mode}</div>`;
+                                }
+                                if (data.device_info.app_version) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">App Version:</span> ${data.device_info.app_version}</div>`;
+                                }
+                                if (data.device_info.project_name) {
+                                    deviceInfoHTML += `<div><span class="font-semibold">Project Name:</span> ${data.device_info.project_name}</div>`;
+                                }
+                                deviceInfoHTML += `</div>`;
                             }
                             deviceInfo.innerHTML = deviceInfoHTML;
                         } else {
