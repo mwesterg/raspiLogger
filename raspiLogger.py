@@ -350,10 +350,7 @@ def device_event_handler():
 @app.route('/')
 def index():
     """Serves the main dashboard page."""
-    html_template = """
     return render_template('index.html')
-    """
-    return render_template_string(html_template)
 
 @app.route('/tags')
 def get_unique_tags():
