@@ -98,66 +98,47 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
 
             // --- Reset Logic ---
             const resetDatabaseButton = document.getElementById('reset-database-button');
-            console.log('resetDatabaseButton:', resetDatabaseButton);
             const modal = document.getElementById('reset-modal');
-            console.log('modal:', modal);
             const confirmBtn = document.getElementById('confirm-reset-btn');
-            console.log('confirmBtn:', confirmBtn);
             const cancelBtn = document.getElementById('cancel-reset-btn');
-            console.log('cancelBtn:', cancelBtn);
 
             const showBootLogsButton = document.getElementById('show-boot-logs-button');
-            console.log('showBootLogsButton:', showBootLogsButton);
             const bootLogsModal = document.getElementById('boot-logs-modal');
-            console.log('bootLogsModal:', bootLogsModal);
             const closeBootLogsBtn = document.getElementById('close-boot-logs-btn');
-            console.log('closeBootLogsBtn:', closeBootLogsBtn);
             const bootLogsContent = document.getElementById('boot-logs-content');
-            console.log('bootLogsContent:', bootLogsContent);
             const bootLogDate = document.getElementById('boot-log-date');
-            console.log('bootLogDate:', bootLogDate);
 
             const restartDeviceButton = document.getElementById('restart-device-button');
-            console.log('restartDeviceButton:', restartDeviceButton);
 
             const filterLogsButton = document.getElementById('filter-logs-button');
-            console.log('filterLogsButton:', filterLogsButton);
             const filterLogsModal = document.getElementById('filter-logs-modal');
-            console.log('filterLogsModal:', filterLogsModal);
             const closeFilterLogsBtn = document.getElementById('close-filter-logs-btn');
-            console.log('closeFilterLogsBtn:', closeFilterLogsBtn);
             const tagDropdown = document.getElementById('tag-dropdown');
-            console.log('tagDropdown:', tagDropdown);
             const filteredLogsContent = document.getElementById('filtered-logs-content');
-            console.log('filteredLogsContent:', filteredLogsContent);
+
+            const configButton = document.getElementById('config-button');
+            const configModal = document.getElementById('config-modal');
+            const closeConfigModalBtn = document.getElementById('close-config-modal-btn');
 
             if (resetDatabaseButton) {
                 resetDatabaseButton.addEventListener('click', () => {
-                    console.log('Reset Database button clicked');
                     modal.classList.remove('hidden');
                 });
-            } else {
-                console.error('resetDatabaseButton not found!');
             }
 
             if (cancelBtn) {
                 cancelBtn.addEventListener('click', () => {
-                    console.log('Cancel button clicked');
                     modal.classList.add('hidden');
                 });
-            } else {
-                console.error('cancelBtn not found!');
             }
 
             if (confirmBtn) {
                 confirmBtn.addEventListener('click', () => {
-                    console.log('Confirm Reset button clicked');
                     fetch('/reset', { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
                         modal.classList.add('hidden');
                         if(data.success) {
-                            console.log('Reset successful');
                             fetchStats(); // Immediately update the stats on the page
                             logLevels.forEach(level => {
                                  const feed = document.getElementById(`${level.toLowerCase()}-log-feed`);
@@ -176,7 +157,6 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
 
             if (showBootLogsButton) {
                 showBootLogsButton.addEventListener('click', () => {
-                    console.log('Show Boot Logs button clicked');
                     fetch('/boot_logs')
                         .then(response => response.json())
                         .then(data => {
@@ -201,22 +181,16 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                             bootLogsModal.classList.remove('hidden');
                         });
                 });
-            } else {
-                console.error('showBootLogsButton not found!');
             }
 
             if (closeBootLogsBtn) {
                 closeBootLogsBtn.addEventListener('click', () => {
-                    console.log('Close Boot Logs button clicked');
                     bootLogsModal.classList.add('hidden');
                 });
-            } else {
-                console.error('closeBootLogsBtn not found!');
             }
 
             if (restartDeviceButton) {
                 restartDeviceButton.addEventListener('click', () => {
-                    console.log('Restart Device button clicked');
                     fetch('/restart_device', { method: 'POST' })
                     .then(response => response.json())
                     .then(data => {
@@ -230,13 +204,10 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                         console.error('Error:', error);
                     });
                 });
-            } else {
-                console.error('restartDeviceButton not found!');
             }
 
             if (filterLogsButton) {
                 filterLogsButton.addEventListener('click', () => {
-                    console.log('Filter Logs button clicked');
                     filterLogsModal.classList.remove('hidden');
                     fetch('/tags')
                         .then(response => response.json())
@@ -250,13 +221,10 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                             console.error('Error fetching tags:', error);
                         });
                 });
-            } else {
-                console.error('filterLogsButton not found!');
             }
 
             if (closeFilterLogsBtn) {
                 closeFilterLogsBtn.addEventListener('click', () => {
-                    console.log('Close Filter Logs button clicked');
                     filterLogsModal.classList.add('hidden');
                     filteredLogsContent.innerHTML = ''; // Clear content when closing
                     tagDropdown.value = ''; // Reset dropdown
@@ -267,7 +235,6 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                 tagDropdown.addEventListener('change', (event) => {
                     const selectedTag = event.target.value;
                     if (selectedTag) {
-                        console.log(`Tag selected: ${selectedTag}`);
                         fetch(`/filtered_logs/${selectedTag}`)
                             .then(response => response.json())
                             .then(logs => {
@@ -288,6 +255,16 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                         filteredLogsContent.innerHTML = ''; // Clear if no tag selected
                     }
                 });
-            } else {
-                console.error('tagDropdown not found!');
+            }
+
+            if (configButton) {
+                configButton.addEventListener('click', () => {
+                    configModal.classList.remove('hidden');
+                });
+            }
+
+            if (closeConfigModalBtn) {
+                closeConfigModalBtn.addEventListener('click', () => {
+                    configModal.classList.add('hidden');
+                });
             }
