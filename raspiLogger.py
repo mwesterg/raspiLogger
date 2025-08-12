@@ -16,6 +16,7 @@ import serial.tools.list_ports
 from flask import Flask, render_template, jsonify, send_file
 
 import subprocess
+from esptool import detect_chip, reset_chip
 
 # Conditional import for pyudev (Linux only)
 if sys.platform.startswith('linux'):
@@ -141,30 +142,20 @@ def reset_esp32(port):
     """Resets the ESP32 device using esptool and gets device info."""
     global esp32_connection_status
     try:
-        # print(f"Getting device info from {port} using esptool...")
-        # result = subprocess.run(["esptool", "--port", port, "flash_id"], capture_output=True, text=True, check=True)
+        print(f"Connecting to ESP32 at {port}...")
+        esp = detect_chip(port=port)
         
-        # # Extracting information from esptool output
-        # chip_type_match = re.search(r"Detecting chip type... (.+)", result.stdout)
-        # if chip_type_match:
-        #     esp32_connection_status["device_info"]["chip_type"] = chip_type_match.group(1).strip()
-
-        # features_match = re.search(r"Features: (.+)", result.stdout)
-        # if features_match:
-        #     esp32_connection_status["device_info"]["features"] = features_match.group(1).strip()
-
-        # mac_address_match = re.search(r"MAC: (.+)", result.stdout)
-        # if mac_address_match:
-        #     esp32_connection_status["device_info"]["mac_address"] = mac_address_match.group(1).strip()
+        # Extracting information from esptool output
+        esp32_connection_status["device_info"]["chip_type"] = esp.CHIP_NAME
+        esp32_connection_status["device_info"]["features"] = ", ".join(esp.get_chip_features())
+        esp32_connection_status["device_info"]["mac_address"] = ":".join(f"{b:02x}" for b in esp.read_mac())
 
         print(f"Resetting ESP32 at {port} using esptool...")
-        subprocess.run(["esptool", "--port", port, "run"], check=False)
+        reset_chip(esp, reset_mode="hard-reset")
         print(f"ESP32 at {port} reset successfully.")
 
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"Error interacting with ESP32 at {port}: {e}")
-    except FileNotFoundError:
-        print("esptool not found. Please ensure it is installed and in your PATH.")
 
 def monitor_serial_port(device_path):
     """Reads from a serial port and logs the messages."""
