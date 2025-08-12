@@ -8,8 +8,8 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                         const text = document.getElementById('connection-text');
                         const deviceInfo = document.getElementById('device-info');
                         if (data.connected) {
-                            indicator.classList.remove('bg-red-500');
-                            indicator.classList.add('bg-green-500');
+                                                        indicator.classList.remove('bg-red-600');
+                            indicator.classList.add('bg-green-600');
                             text.textContent = `Connected at ${data.port}`;
                             let deviceInfoHTML = '';
                             if(data.device_info) {
@@ -42,8 +42,9 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                             }
                             deviceInfo.innerHTML = deviceInfoHTML;
                         } else {
-                            indicator.classList.remove('bg-green-500');
-                            indicator.classList.add('bg-red-500');
+                            } else {
+                            indicator.classList.remove('bg-green-600');
+                            indicator.classList.add('bg-red-600');
                             text.textContent = 'Disconnected';
                             deviceInfo.innerHTML = '';
                         }
@@ -55,13 +56,13 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                     .then(response => response.json())
                     .then(data => {
                         const container = document.getElementById('stats-container');
-                        container.innerHTML = `
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-gray-500">Total Msgs</p><p class="text-2xl font-bold">${data.total_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-blue-500">Debug</p><p class="text-2xl font-bold">${data.debug_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-green-500">Info</p><p class="text-2xl font-bold">${data.info_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-yellow-500">Warning</p><p class="text-2xl font-bold">${data.warning_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-red-500">Error</p><p class="text-2xl font-bold">${data.error_messages || 0}</p></div>
-                            <div class="bg-white p-4 rounded-lg shadow-md text-center"><p class="text-sm text-gray-500">Other</p><p class="text-2xl font-bold">${data.other_messages || 0}</p></div>
+                                                container.innerHTML = `
+                            <div class="bg-gray-800 p-4 rounded-lg shadow-md text-center"><p class="text-sm text-gray-400">Total Msgs</p><p class="text-2xl font-bold">${data.total_messages || 0}</p></div>
+                            <div class="bg-gray-800 p-4 rounded-lg shadow-md text-center"><p class="text-sm text-blue-400">Debug</p><p class="text-2xl font-bold">${data.debug_messages || 0}</p></div>
+                            <div class="bg-gray-800 p-4 rounded-lg shadow-md text-center"><p class="text-sm text-green-400">Info</p><p class="text-2xl font-bold">${data.info_messages || 0}</p></div>
+                            <div class="bg-gray-800 p-4 rounded-lg shadow-md text-center"><p class="text-sm text-yellow-400">Warning</p><p class="text-2xl font-bold">${data.warning_messages || 0}</p></div>
+                            <div class="bg-gray-800 p-4 rounded-lg shadow-md text-center"><p class="text-sm text-red-400">Error</p><p class="text-2xl font-bold">${data.error_messages || 0}</p></div>
+                            <div class="bg-gray-800 p-4 rounded-lg shadow-md text-center"><p class="text-sm text-gray-400">Other</p><p class="text-2xl font-bold">${data.other_messages || 0}</p></div>
                         `;
                     });
             }

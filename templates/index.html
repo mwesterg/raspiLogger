@@ -19,14 +19,14 @@
             }
         </style>
     </head>
-    <body class="bg-gray-100 text-gray-800 flex">
+    <body class="bg-gray-950 text-gray-100 flex">
         <!-- Sidebar -->
-        <div id="sidebar" class="w-64 bg-gray-800 text-white p-4 flex flex-col fixed h-full transition-all duration-300 ease-in-out">
+        <div id="sidebar" class="w-64 bg-gray-900 text-gray-100 p-4 flex flex-col fixed h-full transition-all duration-300 ease-in-out">
             <h2 class="text-2xl font-bold mb-6">Menu</h2>
             
             <div class="mb-6">
                 <h3 class="text-lg font-semibold mb-2">Configuration</h3>
-                <button id="config-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">
+                <button id="config-button" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded text-center transition duration-300">
                     Settings
                 </button>
             </div>
@@ -34,10 +34,10 @@
             <div>
                 <h3 class="text-lg font-semibold mb-2">Download Logs</h3>
                 <div class="grid grid-cols-1 gap-2">
-                    <a href="/download/DEBUG" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download DEBUG</a>
-                    <a href="/download/INFO" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download INFO</a>
-                    <a href="/download/WARNING" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download WARNING</a>
-                    <a href="/download/ERROR" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download ERROR</a>
+                    <a href="/download/DEBUG" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download DEBUG</a>
+                    <a href="/download/INFO" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download INFO</a>
+                    <a href="/download/WARNING" class="bg-yellow-700 hover:bg-yellow-800 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download WARNING</a>
+                    <a href="/download/ERROR" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded text-center transition duration-300">Download ERROR</a>
                 </div>
             </div>
         </div>
@@ -47,10 +47,10 @@
             <div class="container mx-auto">
                 <div class="flex justify-between items-center mb-6">
                     <div class="flex items-center">
-                        <button id="sidebar-toggle" class="p-2 rounded-md bg-gray-200 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 mr-4">
-                            <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                        <button id="sidebar-toggle" class="p-2 rounded-md bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 mr-4">
+                            <svg class="w-6 h-6 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                         </button>
-                        <h1 class="text-3xl font-bold text-gray-900">TurboMonitor</h1>
+                        <h1 class="text-3xl font-bold text-gray-100">TurboMonitor</h1>
                     </div>
                     <div id="connection-status" class="flex items-center">
                         <div id="connection-indicator" class="h-4 w-4 rounded-full mr-2"></div>
@@ -63,47 +63,47 @@
                     <!-- Stats will be loaded here by JavaScript -->
                 </div>
 
-                <h2 class="text-2xl font-semibold mb-4 text-gray-900">Live Log Feeds</h2>
+                <h2 class="text-2xl font-semibold mb-4 text-gray-100">Live Log Feeds</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
                     <!-- Debug Column -->
                     <div>
                         <h3 class="text-lg font-medium mb-2 text-blue-600">Debug</h3>
-                        <div id="debug-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
+                        <div id="debug-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                             <p class="text-gray-500">Waiting for logs...</p>
                         </div>
                     </div>
                     <!-- Info Column -->
                     <div>
                         <h3 class="text-lg font-medium mb-2 text-green-600">Info</h3>
-                        <div id="info-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
+                        <div id="info-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                              <p class="text-gray-500">Waiting for logs...</p>
                         </div>
                     </div>
                     <!-- Warning Column -->
                     <div>
                         <h3 class="text-lg font-medium mb-2 text-yellow-600">Warning</h3>
-                        <div id="warning-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
+                        <div id="warning-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                              <p class="text-gray-500">Waiting for logs...</p>
                         </div>
                     </div>
                     <!-- Error Column -->
                     <div>
                         <h3 class="text-lg font-medium mb-2 text-red-600">Error</h3>
-                        <div id="error-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner">
+                        <div id="error-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                              <p class="text-gray-500">Waiting for logs...</p>
                         </div>
                     </div>
                 </div>
 
-                <h2 class="text-2xl font-semibold mb-4 mt-8 text-gray-900">Maintenance</h2>
-                <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold mb-4 mt-8 text-gray-100">Maintenance</h2>
+                <div class="bg-gray-800 p-6 rounded-lg shadow-md">
                     <div class="flex flex-wrap gap-4">
                         <button id="reset-database-button" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300">Reset Database</button>
                         <button id="show-boot-logs-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Show Boot Logs</button>
                         <button id="restart-device-button" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded transition duration-300">Restart Device</button>
                         <button id="filter-logs-button" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded transition duration-300">Filter Logs by Tag</button>
                     </div>
-                    <p class="text-sm text-gray-600 mt-2">This will permanently delete all stored logs and reset all counters.</p>
+                    <p class="text-sm text-gray-400 mt-2">This will permanently delete all stored logs and reset all counters.</p>
                 </div>
             </div>
         </div>
