@@ -157,12 +157,23 @@ def flash_firmware(port, firmware_path, partition_name):
             print(f"Detecting chip for flashing at {port}...")
             esp_global = detect_chip(port=port)
         
-        print(f"Flashing {firmware_path} to {partition_name} on {port}...")
-        # esptool.write_flash expects a list of (address, filename) tuples
-        # It also expects the file to be open in binary mode.
+        # Read partition table
+        print("Reading partition table...")
+        partitions = esp_global.read_partition_table()
+        
+        target_offset = None
+        for p in partitions:
+            if p.name == partition_name:
+                target_offset = p.offset
+                break
+        
+        if target_offset is None:
+            raise ValueError(f"Partition '{partition_name}' not found in device's partition table.")
+
+        print(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+        
         with open(firmware_path, 'rb') as f:
-            # write_flash returns a tuple (bytes_written, output_string)
-            bytes_written, output_string = write_flash(esp_global, [(0x10000, f)])
+            bytes_written, output_string = write_flash(esp_global, [(target_offset, f)])
         
         print(f"Flashing complete. Bytes written: {bytes_written}")
         return output_string
