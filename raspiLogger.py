@@ -138,17 +138,19 @@ def parse_log_message(line):
     }
 
 # --- Serial Port Monitoring ---
-def reset_esp32(port):
-    """Resets the ESP32 device using esptool and gets device info."""
+def reset_esp32(port, get_info=False):
+    """Resets the ESP32 device using esptool. Optionally gets device info."""
     global esp32_connection_status
     try:
         print(f"Connecting to ESP32 at {port}...")
         esp = detect_chip(port=port)
         
-        # Extracting information from esptool output
-        esp32_connection_status["device_info"]["chip_type"] = esp.CHIP_NAME
-        esp32_connection_status["device_info"]["features"] = ", ".join(esp.get_chip_features())
-        esp32_connection_status["device_info"]["mac_address"] = ":".join(f"{b:02x}" for b in esp.read_mac())
+        if get_info:
+            print("Getting device info...")
+            # Extracting information from esptool output
+            esp32_connection_status["device_info"]["chip_type"] = esp.CHIP_NAME
+            esp32_connection_status["device_info"]["features"] = ", ".join(esp.get_chip_features())
+            esp32_connection_status["device_info"]["mac_address"] = ":".join(f"{b:02x}" for b in esp.read_mac())
 
         print(f"Resetting ESP32 at {port} using esptool...")
         reset_chip(esp, reset_mode="hard-reset")
@@ -169,7 +171,7 @@ def monitor_serial_port(device_path):
             esp32_connection_status["boot_logs"] = [] # Clear previous boot logs on new connection
             esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
             print(f"Successfully opened {device_path}. Waiting for messages...")
-            reset_esp32(device_path)
+            reset_esp32(device_path, get_info=True)
             time.sleep(2) # Wait for the device to boot
             
             is_booting = True
