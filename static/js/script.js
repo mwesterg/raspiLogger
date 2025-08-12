@@ -255,6 +255,13 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                 });
             }
 
+            const flashDeviceButton = document.getElementById('flash-device-button');
+            const flashModal = document.getElementById('flash-modal');
+            const closeFlashModalBtn = document.getElementById('close-flash-modal-btn');
+            const firmwareFileInput = document.getElementById('firmware-file-input');
+            const startFlashBtn = document.getElementById('start-flash-btn');
+            const flashOutput = document.getElementById('flash-output');
+
             if (configButton) {
                 configButton.addEventListener('click', () => {
                     configModal.classList.remove('hidden');
@@ -264,6 +271,51 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
             if (closeConfigModalBtn) {
                 closeConfigModalBtn.addEventListener('click', () => {
                     configModal.classList.add('hidden');
+                });
+            }
+
+            if (flashDeviceButton) {
+                flashDeviceButton.addEventListener('click', () => {
+                    flashModal.classList.remove('hidden');
+                    flashOutput.innerHTML = ''; // Clear previous output
+                    firmwareFileInput.value = ''; // Clear selected file
+                });
+            }
+
+            if (closeFlashModalBtn) {
+                closeFlashModalBtn.addEventListener('click', () => {
+                    flashModal.classList.add('hidden');
+                });
+            }
+
+            if (startFlashBtn) {
+                startFlashBtn.addEventListener('click', () => {
+                    const file = firmwareFileInput.files[0];
+                    if (!file) {
+                        flashOutput.innerHTML = '<p class="text-red-500">Please select a firmware file.</p>';
+                        return;
+                    }
+
+                    flashOutput.innerHTML = '<p class="text-yellow-500">Starting flash...</p>';
+                    const formData = new FormData();
+                    formData.append('firmware', file);
+
+                    fetch('/flash_device', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            flashOutput.innerHTML += `<p class="text-green-500">Flash successful!</p><pre>${data.output}</pre>`;
+                        } else {
+                            flashOutput.innerHTML += `<p class="text-red-500">Flash failed: ${data.message}</p><pre>${data.output}</pre>`;
+                        }
+                    })
+                    .catch(error => {
+                        flashOutput.innerHTML += `<p class="text-red-500">Error during flash: ${error}</p>`;
+                        console.error('Error:', error);
+                    });
                 });
             }
 
