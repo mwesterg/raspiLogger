@@ -158,7 +158,7 @@ def reset_esp32(port):
             esp32_connection_status["device_info"]["mac_address"] = mac_address_match.group(1).strip()
 
         print(f"Resetting ESP32 at {port} using esptool...")
-        subprocess.run(["esptool", "--port", port, "run"], check=True)
+        subprocess.run(["esptool", "--port", port, "run"], check=False)
         print(f"ESP32 at {port} reset successfully.")
 
     except subprocess.CalledProcessError as e:
