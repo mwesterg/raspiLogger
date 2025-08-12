@@ -49,7 +49,8 @@ esp32_connection_status = {
         "esp_idf_version": None
     },
     "boot_logs": [],
-    "boot_timestamp": None
+    "boot_timestamp": None,
+    "is_booting": False
 }
 
 # --- Flask Web App ---
@@ -154,6 +155,9 @@ def reset_esp32(port, get_info=False):
 
         print(f"Resetting ESP32 at {port} using esptool...")
         reset_chip(esp, reset_mode="hard-reset")
+        esp32_connection_status["is_booting"] = True # Start expecting boot logs
+        esp32_connection_status["boot_logs"] = [] # Clear previous boot logs
+        esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
         print(f"ESP32 at {port} reset successfully.")
 
     except Exception as e:
@@ -170,21 +174,22 @@ def monitor_serial_port(device_path):
             esp32_connection_status["port"] = device_path
             esp32_connection_status["boot_logs"] = [] # Clear previous boot logs on new connection
             esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
+            esp32_connection_status["is_booting"] = True # Start expecting boot logs
             print(f"Successfully opened {device_path}. Waiting for messages...")
             reset_esp32(device_path, get_info=True)
             time.sleep(2) # Wait for the device to boot
             
-            is_booting = True
+            # is_booting = True # This is now global
             while True:
                 try:
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if line:
                         print(f"Received line: {line}")
                         
-                        if is_booting:
+                        if esp32_connection_status["is_booting"]:
                             esp32_connection_status["boot_logs"].append(line)
                             if "main_task: Calling app_main()" in line:
-                                is_booting = False
+                                esp32_connection_status["is_booting"] = False
                                 print("App main started. Switching to normal logging.")
 
                         app_version_match = re.search(r"App version: (.*?)\x1b", line)
@@ -207,7 +212,7 @@ def monitor_serial_port(device_path):
                         if esp_idf_version_match:
                             esp32_connection_status["device_info"]["esp_idf_version"] = esp_idf_version_match.group(1).strip()
 
-                        if not is_booting: # Only add to info logs if not in boot sequence
+                        if not esp32_connection_status["is_booting"]: # Only add to info logs if not in boot sequence
                             parsed_log = parse_log_message(line)
                             if parsed_log:
                                 print(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
@@ -239,6 +244,7 @@ def monitor_serial_port(device_path):
                     
                     esp32_connection_status["boot_logs"] = []
                     esp32_connection_status["boot_timestamp"] = None
+                    esp32_connection_status["is_booting"] = False
                     break
                 except Exception as e:
                     print(f"An error occurred while reading from serial port: {e}")
@@ -294,6 +300,7 @@ def device_event_handler():
                     }
                     esp32_connection_status["boot_logs"] = []
                     esp32_connection_status["boot_timestamp"] = None
+                    esp32_connection_status["is_booting"] = False
             
             # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
     else: # Windows or other non-Linux OS
@@ -333,6 +340,7 @@ def device_event_handler():
                         }
                         esp32_connection_status["boot_logs"] = []
                         esp32_connection_status["boot_timestamp"] = None
+                        esp32_connection_status["is_booting"] = False
                     del connected_ports[port]
 
                 time.sleep(3) # Scan every 3 seconds
