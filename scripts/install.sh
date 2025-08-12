@@ -38,7 +38,7 @@ NGINX_SITES_ENABLED="/etc/nginx/sites-enabled/$NGINX_CONF_NAME"
 if [ ! -f "$NGINX_CONF_SOURCE" ]; then
     echo "Error: Nginx configuration source file '$NGINX_CONF_SOURCE' not found."
     exit 1
-}
+fi
 
 # Copy the Nginx configuration file
 sudo cp "$NGINX_CONF_SOURCE" "$NGINX_SITES_AVAILABLE"
