@@ -13,7 +13,16 @@ if [ ! -f "$SERVICE_FILE" ]; then
     exit 1
 fi
 
-sudo cp "$SERVICE_FILE" "$DEST_SERVICE_PATH"
+# Remove existing service file or symlink if it exists
+if [ -f "$DEST_SERVICE_PATH" ] || [ -L "$DEST_SERVICE_PATH" ]; then
+    echo "Existing service file or symlink found at $DEST_SERVICE_PATH. Removing..."
+    sudo rm "$DEST_SERVICE_PATH"
+fi
+
+# Create a symbolic link (stow)
+sudo ln -s "$(pwd)/$SERVICE_FILE" "$DEST_SERVICE_PATH" # Use absolute path for source
+echo "Symbolic link created for raspiLogger.service at $DEST_SERVICE_PATH"
+
 sudo systemctl daemon-reload
 sudo systemctl enable raspiLogger.service
 sudo systemctl start raspiLogger.service
@@ -29,7 +38,7 @@ NGINX_SITES_ENABLED="/etc/nginx/sites-enabled/$NGINX_CONF_NAME"
 if [ ! -f "$NGINX_CONF_SOURCE" ]; then
     echo "Error: Nginx configuration source file '$NGINX_CONF_SOURCE' not found."
     exit 1
-fi
+}
 
 # Copy the Nginx configuration file
 sudo cp "$NGINX_CONF_SOURCE" "$NGINX_SITES_AVAILABLE"
