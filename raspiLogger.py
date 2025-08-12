@@ -18,6 +18,8 @@ from flask import Flask, render_template, jsonify, send_file
 import subprocess
 from esptool import detect_chip, reset_chip
 
+esp_global = None
+
 # Conditional import for pyudev (Linux only)
 if sys.platform.startswith('linux'):
     import pyudev
@@ -141,20 +143,20 @@ def parse_log_message(line):
 # --- Serial Port Monitoring ---
 def reset_esp32(port, get_info=False):
     """Resets the ESP32 device using esptool. Optionally gets device info."""
-    global esp32_connection_status
+    global esp32_connection_status, esp_global
     try:
-        print(f"Connecting to ESP32 at {port}...")
-        esp = detect_chip(port=port)
-        
-        if get_info:
+        if get_info or esp_global is None: # If it's a new connection or esp_global is not set
+            print(f"Detecting chip at {port}...")
+            esp_global = detect_chip(port=port)
             print("Getting device info...")
-            # Extracting information from esptool output
-            esp32_connection_status["device_info"]["chip_type"] = esp.CHIP_NAME
-            esp32_connection_status["device_info"]["features"] = ", ".join(esp.get_chip_features())
-            esp32_connection_status["device_info"]["mac_address"] = ":".join(f"{b:02x}" for b in esp.read_mac())
+            esp32_connection_status["device_info"]["chip_type"] = esp_global.CHIP_NAME
+            esp32_connection_status["device_info"]["features"] = ", ".join(esp_global.get_chip_features())
+            esp32_connection_status["device_info"]["mac_address"] = ":".join(f"{b:02x}" for b in esp_global.read_mac())
+        else:
+            print(f"Using existing ESP object for {port}...")
 
         print(f"Resetting ESP32 at {port} using esptool...")
-        reset_chip(esp, reset_mode="hard-reset")
+        reset_chip(esp_global, reset_mode="hard-reset")
         esp32_connection_status["is_booting"] = True # Start expecting boot logs
         esp32_connection_status["boot_logs"] = [] # Clear previous boot logs
         esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
@@ -162,6 +164,7 @@ def reset_esp32(port, get_info=False):
 
     except Exception as e:
         print(f"Error interacting with ESP32 at {port}: {e}")
+        esp_global = None # Reset global esp object on error
 
 def monitor_serial_port(device_path):
     """Reads from a serial port and logs the messages."""
@@ -245,6 +248,7 @@ def monitor_serial_port(device_path):
                     esp32_connection_status["boot_logs"] = []
                     esp32_connection_status["boot_timestamp"] = None
                     esp32_connection_status["is_booting"] = False
+                    esp_global = None # Reset global esp object on disconnect
                     break
                 except Exception as e:
                     print(f"An error occurred while reading from serial port: {e}")
@@ -301,6 +305,7 @@ def device_event_handler():
                     esp32_connection_status["boot_logs"] = []
                     esp32_connection_status["boot_timestamp"] = None
                     esp32_connection_status["is_booting"] = False
+                    esp_global = None # Reset global esp object on disconnect
             
             # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
     else: # Windows or other non-Linux OS
@@ -341,6 +346,7 @@ def device_event_handler():
                         esp32_connection_status["boot_logs"] = []
                         esp32_connection_status["boot_timestamp"] = None
                         esp32_connection_status["is_booting"] = False
+                        esp_global = None # Reset global esp object on disconnect
                     del connected_ports[port]
 
                 time.sleep(3) # Scan every 3 seconds
