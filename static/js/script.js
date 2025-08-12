@@ -97,7 +97,7 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
             });
 
             // --- Reset Logic ---
-            const resetDatabaseButton = document.getElementById('reset-database-button');
+            const resetDatabaseButton = document.getElementById('reset-database-button-in-modal');
             const modal = document.getElementById('reset-modal');
             const confirmBtn = document.getElementById('confirm-reset-btn');
             const cancelBtn = document.getElementById('cancel-reset-btn');
@@ -120,11 +120,9 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
             const configModal = document.getElementById('config-modal');
             const closeConfigModalBtn = document.getElementById('close-config-modal-btn');
 
-            if (resetDatabaseButton) {
-                resetDatabaseButton.addEventListener('click', () => {
-                    modal.classList.remove('hidden');
-                });
-            }
+            resetDatabaseButton.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+            });
 
             if (cancelBtn) {
                 cancelBtn.addEventListener('click', () => {

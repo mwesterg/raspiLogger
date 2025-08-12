@@ -98,12 +98,10 @@
                 <h2 class="text-2xl font-semibold mb-4 mt-8 text-gray-100">Maintenance</h2>
                 <div class="bg-gray-800 p-6 rounded-lg shadow-md">
                     <div class="flex flex-wrap gap-4">
-                        <button id="reset-database-button" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300">Reset Database</button>
                         <button id="show-boot-logs-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Show Boot Logs</button>
-                        <button id="restart-device-button" class="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded transition duration-300">Restart Device</button>
-                        <button id="filter-logs-button" class="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded transition duration-300">Filter Logs by Tag</button>
+                        <button id="restart-device-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Restart Device</button>
+                        <button id="filter-logs-button" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition duration-300">Filter Logs by Tag</button>
                     </div>
-                    <p class="text-sm text-gray-400 mt-2">This will permanently delete all stored logs and reset all counters.</p>
                 </div>
             </div>
         </div>
@@ -122,6 +120,10 @@
                         <p class="text-sm text-gray-500">
                             Configuration options will go here.
                         </p>
+                        <div class="mt-4">
+                            <button id="reset-database-button-in-modal" class="bg-red-700 hover:bg-red-800 text-white font-bold py-2 px-4 rounded transition duration-300">Reset Database</button>
+                            <p class="text-sm text-gray-500 mt-2">This will permanently delete all stored logs and reset all counters.</p>
+                        </div>
                     </div>
                 </div>
             </div>
