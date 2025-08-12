@@ -42,7 +42,11 @@ const logLevels = ['DEBUG', 'INFO', 'WARNING', 'ERROR'];
                             }
                             deviceInfo.innerHTML = deviceInfoHTML;
                         } else {
-                            } else {
+                            indicator.classList.remove('bg-green-600');
+                            indicator.classList.add('bg-red-600');
+                            text.textContent = 'Disconnected';
+                            deviceInfo.innerHTML = '';
+                        }
                     });
             }
 
