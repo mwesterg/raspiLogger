@@ -141,21 +141,21 @@ def reset_esp32(port):
     """Resets the ESP32 device using esptool and gets device info."""
     global esp32_connection_status
     try:
-        print(f"Getting device info from {port} using esptool...")
-        result = subprocess.run(["esptool", "--port", port, "flash_id"], capture_output=True, text=True, check=True)
+        # print(f"Getting device info from {port} using esptool...")
+        # result = subprocess.run(["esptool", "--port", port, "flash_id"], capture_output=True, text=True, check=True)
         
-        # Extracting information from esptool output
-        chip_type_match = re.search(r"Detecting chip type... (.+)", result.stdout)
-        if chip_type_match:
-            esp32_connection_status["device_info"]["chip_type"] = chip_type_match.group(1).strip()
+        # # Extracting information from esptool output
+        # chip_type_match = re.search(r"Detecting chip type... (.+)", result.stdout)
+        # if chip_type_match:
+        #     esp32_connection_status["device_info"]["chip_type"] = chip_type_match.group(1).strip()
 
-        features_match = re.search(r"Features: (.+)", result.stdout)
-        if features_match:
-            esp32_connection_status["device_info"]["features"] = features_match.group(1).strip()
+        # features_match = re.search(r"Features: (.+)", result.stdout)
+        # if features_match:
+        #     esp32_connection_status["device_info"]["features"] = features_match.group(1).strip()
 
-        mac_address_match = re.search(r"MAC: (.+)", result.stdout)
-        if mac_address_match:
-            esp32_connection_status["device_info"]["mac_address"] = mac_address_match.group(1).strip()
+        # mac_address_match = re.search(r"MAC: (.+)", result.stdout)
+        # if mac_address_match:
+        #     esp32_connection_status["device_info"]["mac_address"] = mac_address_match.group(1).strip()
 
         print(f"Resetting ESP32 at {port} using esptool...")
         subprocess.run(["esptool", "--port", port, "run"], check=False)
