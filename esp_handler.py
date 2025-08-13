@@ -6,6 +6,7 @@ import serial
 import serial.tools.list_ports 
 from esptool import detect_chip, reset_chip, write_flash
 import re
+import logging # Import logging
 
 from config import SUPPORTED_DEVICES, SERIAL_BAUDRATE
 from database import add_log_entry, update_other_messages_stat
