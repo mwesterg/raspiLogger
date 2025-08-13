@@ -60,6 +60,7 @@ def device_event_handler():
                     esp32_connection_status["boot_logs"] = []
                     esp32_connection_status["boot_timestamp"] = None
                     esp32_connection_status["is_booting"] = False
+                    esp32_connection_status["cpu_start_count"] = 0 # Reset counter
                     esp_global = None # Reset global esp object on disconnect
             
             # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
@@ -101,6 +102,7 @@ def device_event_handler():
                         esp32_connection_status["boot_logs"] = []
                         esp32_connection_status["boot_timestamp"] = None
                         esp32_connection_status["is_booting"] = False
+                        esp32_connection_status["cpu_start_count"] = 0 # Reset counter
                         esp_global = None # Reset global esp object on disconnect
                     del connected_ports[port]
 

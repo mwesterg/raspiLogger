@@ -28,7 +28,8 @@ esp32_connection_status = {
     },
     "boot_logs": [],
     "boot_timestamp": None,
-    "is_booting": False
+    "is_booting": False,
+    "cpu_start_count": 0 # New field
 }
 
 def reset_esp32(port, get_info=False):
@@ -50,6 +51,7 @@ def reset_esp32(port, get_info=False):
         esp32_connection_status["is_booting"] = True # Start expecting boot logs
         esp32_connection_status["boot_logs"] = [] # Clear previous boot logs
         esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
+        esp32_connection_status["cpu_start_count"] = 0 # Reset counter
         print(f"ESP32 at {port} reset successfully.")
 
     except Exception as e:
@@ -83,9 +85,17 @@ def monitor_serial_port(device_path):
                             print(f"DEBUG: is_booting is True. Appending line to boot_logs. Current boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
                             esp32_connection_status["boot_logs"].append(line)
                             print(f"DEBUG: After append. New boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
-                            if "main_task: Calling app_main()" in line:
-                                esp32_connection_status["is_booting"] = False
-                                print("App main started. Switching to normal logging.")
+                            
+                            # Parse the log to get the tag for boot detection
+                            parsed_log_for_boot_check = parse_log_message(line)
+                            if parsed_log_for_boot_check:
+                                if parsed_log_for_boot_check['tag'] == 'cpu_start':
+                                    esp32_connection_status["cpu_start_count"] += 1
+                                elif esp32_connection_status["cpu_start_count"] > 0: # If we've seen at least one cpu_start message
+                                    esp32_connection_status["is_booting"] = False
+                                    print("App main started (cpu_start transition). Switching to normal logging.")
+                                    # Reset cpu_start_count for next boot
+                                    esp32_connection_status["cpu_start_count"] = 0
 
                         # These regex matches should probably be moved to log_parser or a new device_info_parser
                         # For now, keeping them here as they directly update esp32_connection_status
@@ -146,6 +156,7 @@ def monitor_serial_port(device_path):
                     esp32_connection_status["boot_logs"] = []
                     esp32_connection_status["boot_timestamp"] = None
                     esp32_connection_status["is_booting"] = False
+                    esp32_connection_status["cpu_start_count"] = 0 # Reset counter
                     esp_global = None # Reset global esp object on disconnect
                     break
                 except Exception as e:
