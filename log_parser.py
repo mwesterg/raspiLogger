@@ -1,4 +1,5 @@
-# log_parser.py
+# This file contains functions for parsing log messages from the ESP32,
+# including stripping ANSI color codes and extracting log components.
 
 import re
 import logging # Import logging

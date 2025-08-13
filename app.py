@@ -1,4 +1,5 @@
-# app.py
+# This file is the main entry point for the Flask web application.
+# It sets up the Flask app, configures logging, registers blueprints, and starts the server.
 
 import threading
 from flask import Flask

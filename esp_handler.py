@@ -1,4 +1,5 @@
-# esp_handler.py
+# This file handles interactions with the ESP32 device, including serial communication,
+# boot log detection, device information retrieval, and firmware flashing.
 
 import time
 from datetime import datetime
@@ -49,7 +50,7 @@ def reset_esp32(port, get_info=False):
 
         logging.info(f"Resetting ESP32 at {port} using esptool...")
         reset_chip(esp_global, reset_mode="hard-reset")
-        # Boot log capture will now be triggered by "rst:0x15" message
+        # Boot log capture will now be triggered by "rst:0x" message
         logging.info(f"ESP32 at {port} reset successfully.")
 
     except Exception as e:
@@ -59,30 +60,35 @@ def reset_esp32(port, get_info=False):
 def monitor_serial_port(device_path):
     """Reads from a serial port and logs the messages."""
     global esp32_connection_status
-    print(f"Attempting to monitor serial port: {device_path}")
+    logging.info(f"Attempting to monitor serial port: {device_path}")
     try:
-        print(f"Opening serial port {device_path} with baudrate {SERIAL_BAUDRATE}...")
+        logging.info(f"Opening serial port {device_path} with baudrate {SERIAL_BAUDRATE}...")
         with serial.Serial(device_path, SERIAL_BAUDRATE, timeout=1) as ser:
             esp32_connection_status["connected"] = True
             esp32_connection_status["port"] = device_path
-            esp32_connection_status["boot_logs"] = [] # Clear previous boot logs on new connection
-            esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
-            esp32_connection_status["is_booting"] = True # Start expecting boot logs
-            print(f"Successfully opened {device_path}. Waiting for messages...")
+            esp32_connection_status["is_booting"] = False # Ensure it's false initially
+            logging.info(f"Successfully opened {device_path}. Waiting for messages...")
             reset_esp32(device_path, get_info=True)
             time.sleep(2) # Wait for the device to boot
             
-            # is_booting = True # This is now global
             while True:
                 try:
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if line:
-                        # print(f"Received line: {line}") # DEBUG: Print received line
+                        logging.debug(f"Received line: {line}")
                         
+                        # Check for reset reason to start boot logging
+                        if not esp32_connection_status["is_booting"] and "rst:0x" in line:
+                            esp32_connection_status["is_booting"] = True
+                            esp32_connection_status["boot_logs"] = [] # Clear previous boot logs
+                            esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
+                            esp32_connection_status["cpu_start_count"] = 0 # Reset counter
+                            logging.info("Detected reset reason (rst:0x). Starting boot log capture.")
+
                         if esp32_connection_status["is_booting"]:
-                            # print(f"DEBUG: is_booting is True. Appending line to boot_logs. Current boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
+                            logging.debug(f"is_booting is True. Appending line to boot_logs. Current boot_logs length: {len(esp32_connection_status['boot_logs'])}")
                             esp32_connection_status["boot_logs"].append(line)
-                            # print(f"DEBUG: After append. New boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
+                            logging.debug(f"After append. New boot_logs length: {len(esp32_connection_status['boot_logs'])}")
                             
                             # Parse the log to get the tag for boot detection
                             parsed_log_for_boot_check = parse_log_message(line)
@@ -91,7 +97,7 @@ def monitor_serial_port(device_path):
                                     esp32_connection_status["cpu_start_count"] += 1
                                 elif esp32_connection_status["cpu_start_count"] > 0: # If we've seen at least one cpu_start message
                                     esp32_connection_status["is_booting"] = False
-                                    print("App main started (cpu_start transition). Switching to normal logging.")
+                                    logging.info("App main started (cpu_start transition). Switching to normal logging.")
                                     # Reset cpu_start_count for next boot
                                     esp32_connection_status["cpu_start_count"] = 0
 
@@ -117,13 +123,13 @@ def monitor_serial_port(device_path):
                         if esp_idf_version_match:
                             esp32_connection_status["device_info"]["esp_idf_version"] = esp_idf_version_match.group(1).strip()
 
-                        # print(f"DEBUG: is_booting: {esp32_connection_status['is_booting']}") # DEBUG: Print is_booting status
+                        logging.debug(f"is_booting: {esp32_connection_status['is_booting']}")
                         if not esp32_connection_status["is_booting"]: # Only add to info logs if not in boot sequence
                             parsed_log = parse_log_message(line)
-                            # print(f"DEBUG: Parsed log: {parsed_log}") # DEBUG: Print parsed log
+                            logging.debug(f"Parsed log: {parsed_log}")
                             if parsed_log:
-                                # print(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
-                                # print(f"DEBUG: Adding log entry: {parsed_log['level']}, {parsed_log['timestamp']}, {parsed_log['tag']}, {parsed_log['message']}") # DEBUG: Before add_log_entry
+                                logging.info(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
+                                logging.debug(f"Adding log entry: {parsed_log['level']}, {parsed_log['timestamp']}, {parsed_log['tag']}, {parsed_log['message']}")
                                 add_log_entry(
                                     parsed_log['level'],
                                     parsed_log['timestamp'],
@@ -133,10 +139,10 @@ def monitor_serial_port(device_path):
                             else:
                                 # This is not a standard log message
                                 update_other_messages_stat()
-                                # print(f"DEBUG: Non-log message, updating other stats: {line}") # DEBUG: Non-log message
-                                print(f"Non-log message: {line}")
+                                logging.debug(f"Non-log message, updating other stats: {line}")
+                                logging.info(f"Non-log message: {line}")
                 except serial.SerialException:
-                    print(f"Device {device_path} disconnected. Stopping monitor.")
+                    logging.error(f"Device {device_path} disconnected. Stopping monitor.")
                     esp32_connection_status["connected"] = False
                     esp32_connection_status["port"] = None
                     esp32_connection_status["device_info"] = {
@@ -158,22 +164,22 @@ def monitor_serial_port(device_path):
                     esp_global = None # Reset global esp object on disconnect
                     break
                 except Exception as e:
-                    print(f"An error occurred while reading from serial port: {e}")
+                    logging.error(f"An error occurred while reading from serial port: {e}")
                     time.sleep(1)
 
     except serial.SerialException as e:
-        print(f"Could not open serial port {device_path}: {e}")
+        logging.error(f"Could not open serial port {device_path}: {e}")
 
 def flash_firmware(port, firmware_path, partition_name):
     """Flashes firmware to the ESP32 device using esptool."""
     global esp_global
     try:
         if esp_global is None:
-            print(f"Detecting chip for flashing at {port}...")
+            logging.info(f"Detecting chip for flashing at {port}...")
             esp_global = detect_chip(port=port)
         
         # Read partition table
-        print("Reading partition table...")
+        logging.info("Reading partition table...")
         partitions = esp_global.read_partition_table()
         
         target_offset = None
@@ -185,13 +191,13 @@ def flash_firmware(port, firmware_path, partition_name):
         if target_offset is None:
             raise ValueError(f"Partition '{partition_name}' not found in device's partition table.")
 
-        print(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+        logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
         
         with open(firmware_path, 'rb') as f:
             bytes_written, output_string = write_flash(esp_global, [(target_offset, f)])
         
-        print(f"Flashing complete. Bytes written: {bytes_written}")
+        logging.info(f"Flashing complete. Bytes written: {bytes_written}")
         return output_string
     except Exception as e:
-        print(f"Error during flashing: {e}")
+        logging.error(f"Error during flashing: {e}")
         raise # Re-raise the exception to be caught by the route

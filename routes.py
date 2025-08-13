@@ -5,6 +5,7 @@ import csv
 import tempfile
 from datetime import datetime
 import sqlite3
+import logging # Import logging
 
 from flask import Blueprint, render_template, jsonify, send_file, request
 
@@ -143,10 +144,10 @@ def reset_database():
             # Reset all statistic counters to 0
             cursor.execute('UPDATE stats SET value = 0')
             conn.commit()
-        print("Database has been reset successfully.")
+        logging.info("Database has been reset successfully.")
         return jsonify(success=True, message="All logs and statistics have been reset.")
     except Exception as e:
-        print(f"Error resetting database: {e}")
+        logging.error(f"Error resetting database: {e}")
         return jsonify(success=False, message="An error occurred during reset."), 500
 
 @routes_bp.route('/flash_device', methods=['POST'])
