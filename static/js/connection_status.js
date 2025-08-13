@@ -13,30 +13,30 @@ function fetchConnectionStatus() {
                 text.textContent = `Connected at ${data.port}`;
                 let deviceInfoHTML = '';
                 if(data.device_info) {
-                    deviceInfoHTML += `<div class="grid grid-cols-2 gap-x-4">`;
+                    deviceInfoHTML += `<div class="flex flex-wrap gap-x-6 gap-y-1">`; // Flex container for key-value pairs
                     if (data.device_info.chip_type) {
-                        deviceInfoHTML += `<div><span class="font-semibold">Chip Type:</span> ${data.device_info.chip_type}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Chip:</span> ${data.device_info.chip_type}</span>`;
                     }
                     if (data.device_info.features) {
-                        deviceInfoHTML += `<div><span class="font-semibold">Features:</span> ${data.device_info.features}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Features:</span> ${data.device_info.features}</span>`;
                     }
                     if (data.device_info.mac_address) {
-                        deviceInfoHTML += `<div><span class="font-semibold">MAC Address:</span> ${data.device_info.mac_address}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">MAC:</span> ${data.device_info.mac_address}</span>`;
                     }
                     if (data.device_info.app_version) {
-                        deviceInfoHTML += `<div><span class="font-semibold">App Version:</span> ${data.device_info.app_version}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">App Ver:</span> ${data.device_info.app_version}</span>`;
                     }
                     if (data.device_info.project_name) {
-                        deviceInfoHTML += `<div><span class="font-semibold">Project Name:</span> ${data.device_info.project_name}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Project:</span> ${data.device_info.project_name}</span>`;
                     }
                     if (data.device_info.reset_reason) {
-                        deviceInfoHTML += `<div><span class="font-semibold">Reset Reason:</span> ${data.device_info.reset_reason}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Reset:</span> ${data.device_info.reset_reason}</span>`;
                     }
                     if (data.device_info.compile_time) {
-                        deviceInfoHTML += `<div><span class="font-semibold">Compile Time:</span> ${data.device_info.compile_time}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Compile:</span> ${data.device_info.compile_time}</span>`;
                     }
                     if (data.device_info.esp_idf_version) {
-                        deviceInfoHTML += `<div><span class="font-semibold">ESP-IDF Version:</span> ${data.device_info.esp_idf_version}</div>`;
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">IDF Ver:</span> ${data.device_info.esp_idf_version}</span>`;
                     }
                     deviceInfoHTML += `</div>`;
                 }
