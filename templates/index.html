@@ -249,6 +249,23 @@
             </div>
         </div>
 
+        <!-- Modal for Log Detail -->
+        <div id="log-detail-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Log Message Detail</h3>
+                        <button id="close-log-detail-modal-btn" class="text-gray-400 hover:text-gray-600">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <div class="mt-2 px-7 py-3">
+                        <pre id="log-detail-content" class="whitespace-pre-wrap font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
     </body>
     </html>

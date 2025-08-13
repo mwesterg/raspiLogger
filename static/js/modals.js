@@ -198,6 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const logDetailModal = document.getElementById('log-detail-modal');
+    const closeLogDetailModalBtn = document.getElementById('close-log-detail-modal-btn');
+    const logDetailContent = document.getElementById('log-detail-content');
+
     if (startFlashBtn) {
         startFlashBtn.addEventListener('click', () => {
             const file = firmwareFileInput.files[0];
@@ -226,6 +230,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 flashOutput.innerHTML += `<p class="text-red-500">Error during flash: ${error}</p>`;
                 console.error('Error:', error);
             });
+        });
+    }
+
+    if (closeLogDetailModalBtn) {
+        closeLogDetailModalBtn.addEventListener('click', () => {
+            logDetailModal.classList.add('hidden');
         });
     }
 });
