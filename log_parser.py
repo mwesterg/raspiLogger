@@ -11,14 +11,14 @@ def parse_log_message(line):
     """Parses a line and returns a dictionary or None."""
     # Strip ANSI color codes from the line
     cleaned_line = ANSI_ESCAPE_PATTERN.sub('', line)
-    print(f"DEBUG: Cleaned line: {cleaned_line}") # DEBUG: Print cleaned line
+    # print(f"DEBUG: Cleaned line: {cleaned_line}") # DEBUG: Print cleaned line
     match = LOG_PATTERN.match(cleaned_line)
-    print(f"DEBUG: Regex match: {match}") # DEBUG: Print regex match
+    # print(f"DEBUG: Regex match: {match}") # DEBUG: Print regex match
     if not match:
         return None
     
     level_char, timestamp, tag, message = match.groups()
-    print(f"DEBUG: Matched groups: Level={level_char}, Timestamp={timestamp}, Tag={tag}, Message={message}") # DEBUG: Print matched groups
+    # print(f"DEBUG: Matched groups: Level={level_char}, Timestamp={timestamp}, Tag={tag}, Message={message}") # DEBUG: Print matched groups
     level_map = {'D': 'DEBUG', 'I': 'INFO', 'W': 'WARNING', 'E': 'ERROR'}
     
     return {

@@ -79,12 +79,12 @@ def monitor_serial_port(device_path):
                 try:
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if line:
-                        print(f"Received line: {line}") # DEBUG: Print received line
+                        # print(f"Received line: {line}") # DEBUG: Print received line
                         
                         if esp32_connection_status["is_booting"]:
-                            print(f"DEBUG: is_booting is True. Appending line to boot_logs. Current boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
+                            # print(f"DEBUG: is_booting is True. Appending line to boot_logs. Current boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
                             esp32_connection_status["boot_logs"].append(line)
-                            print(f"DEBUG: After append. New boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
+                            # print(f"DEBUG: After append. New boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
                             
                             # Parse the log to get the tag for boot detection
                             parsed_log_for_boot_check = parse_log_message(line)
@@ -119,13 +119,13 @@ def monitor_serial_port(device_path):
                         if esp_idf_version_match:
                             esp32_connection_status["device_info"]["esp_idf_version"] = esp_idf_version_match.group(1).strip()
 
-                        print(f"DEBUG: is_booting: {esp32_connection_status['is_booting']}") # DEBUG: Print is_booting status
+                        # print(f"DEBUG: is_booting: {esp32_connection_status['is_booting']}") # DEBUG: Print is_booting status
                         if not esp32_connection_status["is_booting"]: # Only add to info logs if not in boot sequence
                             parsed_log = parse_log_message(line)
-                            print(f"DEBUG: Parsed log: {parsed_log}") # DEBUG: Print parsed log
+                            # print(f"DEBUG: Parsed log: {parsed_log}") # DEBUG: Print parsed log
                             if parsed_log:
-                                print(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
-                                print(f"DEBUG: Adding log entry: {parsed_log['level']}, {parsed_log['timestamp']}, {parsed_log['tag']}, {parsed_log['message']}") # DEBUG: Before add_log_entry
+                                # print(f"Logged: {parsed_log['level']} - {parsed_log['message']}")
+                                # print(f"DEBUG: Adding log entry: {parsed_log['level']}, {parsed_log['timestamp']}, {parsed_log['tag']}, {parsed_log['message']}") # DEBUG: Before add_log_entry
                                 add_log_entry(
                                     parsed_log['level'],
                                     parsed_log['timestamp'],
@@ -135,7 +135,7 @@ def monitor_serial_port(device_path):
                             else:
                                 # This is not a standard log message
                                 update_other_messages_stat()
-                                print(f"DEBUG: Non-log message, updating other stats: {line}") # DEBUG: Non-log message
+                                # print(f"DEBUG: Non-log message, updating other stats: {line}") # DEBUG: Non-log message
                                 print(f"Non-log message: {line}")
                 except serial.SerialException:
                     print(f"Device {device_path} disconnected. Stopping monitor.")
