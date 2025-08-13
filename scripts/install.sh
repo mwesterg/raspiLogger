@@ -13,6 +13,16 @@ if [ ! -f "$SERVICE_FILE" ]; then
     exit 1
 fi
 
+# Stop and disable existing service if it's active
+if sudo systemctl is-active --quiet raspiLogger.service; then
+    echo "Stopping existing raspiLogger.service..."
+    sudo systemctl stop raspiLogger.service
+fi
+if sudo systemctl is-enabled --quiet raspiLogger.service; then
+    echo "Disabling existing raspiLogger.service..."
+    sudo systemctl disable raspiLogger.service
+fi
+
 # Remove existing service file or symlink if it exists
 if [ -f "$DEST_SERVICE_PATH" ] || [ -L "$DEST_SERVICE_PATH" ]; then
     echo "Existing service file or symlink found at $DEST_SERVICE_PATH. Removing..."
