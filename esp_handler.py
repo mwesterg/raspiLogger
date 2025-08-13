@@ -38,25 +38,22 @@ def reset_esp32(port, get_info=False):
     global esp32_connection_status, esp_global
     try:
         if get_info or esp_global is None: # If it's a new connection or esp_global is not set
-            print(f"Detecting chip at {port}...")
+            logging.info(f"Detecting chip at {port}...")
             esp_global = detect_chip(port=port)
-            print("Getting device info...")
+            logging.info("Getting device info...")
             esp32_connection_status["device_info"]["chip_type"] = esp_global.CHIP_NAME
             esp32_connection_status["device_info"]["features"] = ", ".join(esp_global.get_chip_features())
             esp32_connection_status["device_info"]["mac_address"] = ":".join(f"{b:02x}" for b in esp_global.read_mac())
         else:
-            print(f"Using existing ESP object for {port}...")
+            logging.info(f"Using existing ESP object for {port}...")
 
-        print(f"Resetting ESP32 at {port} using esptool...")
+        logging.info(f"Resetting ESP32 at {port} using esptool...")
         reset_chip(esp_global, reset_mode="hard-reset")
-        esp32_connection_status["is_booting"] = True # Start expecting boot logs
-        esp32_connection_status["boot_logs"] = [] # Clear previous boot logs
-        esp32_connection_status["boot_timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Capture boot time
-        esp32_connection_status["cpu_start_count"] = 0 # Reset counter
-        print(f"ESP32 at {port} reset successfully.")
+        # Boot log capture will now be triggered by "rst:0x15" message
+        logging.info(f"ESP32 at {port} reset successfully.")
 
     except Exception as e:
-        print(f"Error interacting with ESP32 at {port}: {e}")
+        logging.error(f"Error interacting with ESP32 at {port}: {e}")
         esp_global = None # Reset global esp object on error
 
 def monitor_serial_port(device_path):
