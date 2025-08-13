@@ -8,7 +8,7 @@ User=wester
 # Replace with the full path to your project directory
 WorkingDirectory=/home/wester/raspiLogger
 # Replace with the full path to your venv's python and your main.py script
-ExecStart=/home/wester/raspiLogger/venv/bin/python3 /home/wester/raspiLogger/raspiLogger.py
+ExecStart=/home/wester/raspiLogger/venv/bin/python3 /home/wester/raspiLogger/app.py
 Restart=always
 
 [Install]
