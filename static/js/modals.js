@@ -265,4 +265,36 @@ document.addEventListener('DOMContentLoaded', () => {
             viewAllLogsModal.classList.add('hidden');
         });
     }
+
+    const viewAppLogsButton = document.getElementById('view-app-logs-button');
+    const appLogsModal = document.getElementById('app-logs-modal');
+    const closeAppLogsModalBtn = document.getElementById('close-app-logs-modal-btn');
+    const appLogsContent = document.getElementById('app-logs-content');
+
+    if (viewAppLogsButton) {
+        viewAppLogsButton.addEventListener('click', () => {
+            appLogsModal.classList.remove('hidden');
+            appLogsContent.innerHTML = '<p class="text-gray-500">Loading application logs...</p>';
+            fetch('/app_logs')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logs) {
+                        appLogsContent.textContent = data.logs;
+                    } else {
+                        appLogsContent.innerHTML = `<p class="text-red-500">${data.message || 'Error loading logs.'}</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching app logs:', error);
+                    appLogsContent.innerHTML = '<p class="text-red-500">Error loading application logs.</p>';
+                });
+        });
+    }
+
+    if (closeAppLogsModalBtn) {
+        closeAppLogsModalBtn.addEventListener('click', () => {
+            appLogsModal.classList.add('hidden');
+        });
+    }
+});
 });

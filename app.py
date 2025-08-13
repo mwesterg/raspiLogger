@@ -3,9 +3,23 @@
 import threading
 from flask import Flask
 import logging # Import logging
+from logging.handlers import RotatingFileHandler # Import RotatingFileHandler
+import os # Import os for path operations
 
 # Configure the root logger to only show ERROR and higher messages
-logging.basicConfig(level=logging.ERROR)
+# logging.basicConfig(level=logging.ERROR) # This sets up console logging
+
+# Configure file logging
+log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app.log')
+file_handler = RotatingFileHandler(log_file_path, maxBytes=1024 * 1024 * 10, backupCount=5) # 10 MB per file, 5 backups
+file_handler.setLevel(logging.INFO) # Set file handler level to INFO
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+# Get the root logger and add the file handler
+root_logger = logging.getLogger()
+root_logger.addHandler(file_handler)
+root_logger.setLevel(logging.INFO) # Set root logger level to INFO
 
 from database import init_db
 from device_detection import device_event_handler
