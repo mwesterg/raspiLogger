@@ -198,9 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const logDetailModal = document.getElementById('log-detail-modal');
-    const closeLogDetailModalBtn = document.getElementById('close-log-detail-modal-btn');
-    const logDetailContent = document.getElementById('log-detail-content');
+    const viewAllLogsModal = document.getElementById('view-all-logs-modal');
+    const closeViewAllLogsModalBtn = document.getElementById('close-view-all-logs-modal-btn');
+    const viewAllLogsTitle = document.getElementById('view-all-logs-title');
+    const viewAllLogsContent = document.getElementById('view-all-logs-content');
 
     if (startFlashBtn) {
         startFlashBtn.addEventListener('click', () => {
@@ -233,9 +234,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (closeLogDetailModalBtn) {
-        closeLogDetailModalBtn.addEventListener('click', () => {
-            logDetailModal.classList.add('hidden');
+    document.querySelectorAll('.view-all-logs-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const logLevel = event.target.dataset.logLevel;
+            viewAllLogsTitle.textContent = `All ${logLevel} Logs`;
+            viewAllLogsContent.innerHTML = '<p class="text-gray-500">Loading...</p>';
+            viewAllLogsModal.classList.remove('hidden');
+
+            fetch(`/all_logs/${logLevel}`)
+                .then(response => response.json())
+                .then(logs => {
+                    viewAllLogsContent.innerHTML = '';
+                    if (logs.length > 0) {
+                        logs.forEach(log => {
+                            viewAllLogsContent.innerHTML += `<div>(${log.timestamp}) ${log.tag}: ${log.message}</div>`;
+                        });
+                    } else {
+                        viewAllLogsContent.innerHTML = '<p class="text-gray-500">No logs found for this level.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching all logs:', error);
+                    viewAllLogsContent.innerHTML = '<p class="text-red-500">Error loading logs.</p>';
+                });
+        });
+    });
+
+    if (closeViewAllLogsModalBtn) {
+        closeViewAllLogsModalBtn.addEventListener('click', () => {
+            viewAllLogsModal.classList.add('hidden');
         });
     }
 });

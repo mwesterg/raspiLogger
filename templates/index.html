@@ -67,28 +67,40 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
                     <!-- Debug Column -->
                     <div>
-                        <h3 class="text-lg font-medium mb-2 text-blue-600">Debug</h3>
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-medium text-blue-600">Debug</h3>
+                            <button class="view-all-logs-btn bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded" data-log-level="DEBUG">View All</button>
+                        </div>
                         <div id="debug-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                             <p class="text-gray-500">Waiting for logs...</p>
                         </div>
                     </div>
                     <!-- Info Column -->
                     <div>
-                        <h3 class="text-lg font-medium mb-2 text-green-600">Info</h3>
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-medium text-green-600">Info</h3>
+                            <button class="view-all-logs-btn bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded" data-log-level="INFO">View All</button>
+                        </div>
                         <div id="info-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                              <p class="text-gray-500">Waiting for logs...</p>
                         </div>
                     </div>
                     <!-- Warning Column -->
                     <div>
-                        <h3 class="text-lg font-medium mb-2 text-yellow-600">Warning</h3>
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-medium text-yellow-600">Warning</h3>
+                            <button class="view-all-logs-btn bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-2 py-1 rounded" data-log-level="WARNING">View All</button>
+                        </div>
                         <div id="warning-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                              <p class="text-gray-500">Waiting for logs...</p>
                         </div>
                     </div>
                     <!-- Error Column -->
                     <div>
-                        <h3 class="text-lg font-medium mb-2 text-red-600">Error</h3>
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-lg font-medium text-red-600">Error</h3>
+                            <button class="view-all-logs-btn bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded" data-log-level="ERROR">View All</button>
+                        </div>
                         <div id="error-log-feed" class="h-64 overflow-y-auto font-mono text-sm bg-gray-800 text-gray-100 p-4 rounded shadow-inner">
                              <p class="text-gray-500">Waiting for logs...</p>
                         </div>
@@ -249,18 +261,18 @@
             </div>
         </div>
 
-        <!-- Modal for Log Detail -->
-        <div id="log-detail-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <!-- Modal for Viewing All Logs of a Level -->
+        <div id="view-all-logs-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
                 <div class="mt-3">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900">Log Message Detail</h3>
-                        <button id="close-log-detail-modal-btn" class="text-gray-400 hover:text-gray-600">
+                        <h3 id="view-all-logs-title" class="text-lg leading-6 font-medium text-gray-900">All Logs</h3>
+                        <button id="close-view-all-logs-modal-btn" class="text-gray-400 hover:text-gray-600">
                             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
                     </div>
                     <div class="mt-2 px-7 py-3">
-                        <pre id="log-detail-content" class="whitespace-pre-wrap font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left"></pre>
+                        <pre id="view-all-logs-content" class="h-96 overflow-y-auto font-mono text-sm bg-gray-900 text-white p-4 rounded shadow-inner text-left"></pre>
                     </div>
                 </div>
             </div>
