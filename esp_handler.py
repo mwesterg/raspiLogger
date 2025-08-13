@@ -80,7 +80,9 @@ def monitor_serial_port(device_path):
                         print(f"Received line: {line}") # DEBUG: Print received line
                         
                         if esp32_connection_status["is_booting"]:
+                            print(f"DEBUG: is_booting is True. Appending line to boot_logs. Current boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
                             esp32_connection_status["boot_logs"].append(line)
+                            print(f"DEBUG: After append. New boot_logs length: {len(esp32_connection_status['boot_logs'])}") # DEBUG
                             if "main_task: Calling app_main()" in line:
                                 esp32_connection_status["is_booting"] = False
                                 print("App main started. Switching to normal logging.")
