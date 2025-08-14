@@ -173,6 +173,10 @@ def monitor_serial_port(device_path):
 def flash_firmware(port, firmware_path, partition_name):
     """Flashes firmware to the ESP32 device using esptool."""
     global esp_global
+    logger = logging.getLogger()  # root logger
+    old_level = logger.level
+    logger.setLevel(logging.DEBUG)  # temporarily enable debug
+
     try:
         if esp_global is None:
             logging.info(f"Detecting chip for flashing at {port}...")
@@ -181,7 +185,8 @@ def flash_firmware(port, firmware_path, partition_name):
         # Read partition table
         logging.info("Reading partition table...")
         partitions = esp_global.read_partition_table()
-        
+        logging.debug(f"Partition table: {partitions}")
+
         target_offset = None
         for p in partitions:
             if p.name == partition_name:
@@ -201,3 +206,5 @@ def flash_firmware(port, firmware_path, partition_name):
     except Exception as e:
         logging.error(f"Error during flashing: {e}")
         raise # Re-raise the exception to be caught by the route
+    finally:
+        logger.setLevel(old_level)  # restore original logging level
