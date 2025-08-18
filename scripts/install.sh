@@ -3,6 +3,14 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
+# --- Dependency Check ---
+echo "Checking for dependencies..."
+if ! command -v stow &> /dev/null; then
+    echo "Error: 'stow' is not installed. Please install it first (e.g., 'sudo apt-get install stow')."
+    exit 1
+fi
+echo "All dependencies are satisfied."
+
 # --- Systemd Service Installation ---
 echo "Installing raspiLogger.service..."
 SERVICE_FILE="etc/systemd/system/raspiLogger.service"
@@ -38,29 +46,39 @@ sudo systemctl enable raspiLogger.service
 sudo systemctl start raspiLogger.service
 echo "raspiLogger.service installed and started."
 
-# --- Nginx Configuration Installation ---
-echo "Installing Nginx configuration..."
-NGINX_CONF_SOURCE="scripts/raspiLogger.nginx.conf" # New: Source file for Nginx config
+# --- Nginx Configuration Installation (using stow) ---
+echo "Installing Nginx configuration using stow..."
+NGINX_STOW_DIR="scripts/nginx"
 NGINX_CONF_NAME="raspiLogger.nginx.conf"
 NGINX_SITES_AVAILABLE="/etc/nginx/sites-available/$NGINX_CONF_NAME"
 NGINX_SITES_ENABLED="/etc/nginx/sites-enabled/$NGINX_CONF_NAME"
 
-if [ ! -f "$NGINX_CONF_SOURCE" ]; then
-    echo "Error: Nginx configuration source file '$NGINX_CONF_SOURCE' not found."
+if [ ! -d "$NGINX_STOW_DIR" ]; then
+    echo "Error: Nginx stow directory '$NGINX_STOW_DIR' not found."
+    echo "Please create the directory structure 'scripts/nginx/etc/nginx/sites-available' and move '$NGINX_CONF_NAME' into it."
     exit 1
 fi
 
-# Copy the Nginx configuration file
-sudo cp "$NGINX_CONF_SOURCE" "$NGINX_SITES_AVAILABLE"
-echo "Nginx configuration copied to $NGINX_SITES_AVAILABLE"
-
-# Enable the Nginx site
-if [ -L "$NGINX_SITES_ENABLED" ]; then
-    echo "Nginx site already enabled. Removing old symlink..."
-    sudo rm "$NGINX_SITES_ENABLED"
+# Remove existing config file if it is not a symlink
+if [ -f "$NGINX_SITES_AVAILABLE" ] && [ ! -L "$NGINX_SITES_AVAILABLE" ]; then
+    echo "Existing configuration file found at $NGINX_SITES_AVAILABLE. Removing..."
+    sudo rm "$NGINX_SITES_AVAILABLE"
 fi
-sudo ln -s "$NGINX_SITES_AVAILABLE" "$NGINX_SITES_ENABLED"
-echo "Nginx site enabled."
+
+# Unstow first to remove old symlinks if they exist
+echo "Unstowing existing nginx configuration if present..."
+sudo stow -D -d "$NGINX_STOW_DIR" -t / nginx
+
+# Stow the new configuration
+echo "Stowing new nginx configuration..."
+sudo stow -d "$NGINX_STOW_DIR" -t / nginx
+echo "Nginx configuration stowed."
+
+# Enable the Nginx site (stow should handle this, but we'll ensure the symlink exists)
+if [ ! -L "$NGINX_SITES_ENABLED" ]; then
+    echo "Enabling Nginx site..."
+    sudo ln -s "$NGINX_SITES_AVAILABLE" "$NGINX_SITES_ENABLED"
+fi
 
 # Test Nginx configuration and reload
 echo "Testing Nginx configuration..."
