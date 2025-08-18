@@ -179,18 +179,18 @@ def flash_firmware(port, firmware_path, partition_name):
     try:
         logging.info(f"Connecting to ESP device at {port}...")
 
-            esp = esp_global.run_stub()
-            target_offset = 0x10000
-   
-            logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
-            
-            write_flash(
-            esp=esp,
-            args=None,   # CLI args object is optional here
-            address_filename=[(target_offset, firmware_path)],
-            flash_size="detect",
-            no_progress=False,
-            encrypt=False
+        esp = esp_global.run_stub()
+        target_offset = 0x10000
+
+        logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+        
+        write_flash(
+        esp=esp,
+        args=None,   # CLI args object is optional here
+        address_filename=[(target_offset, firmware_path)],
+        flash_size="detect",
+        no_progress=False,
+        encrypt=False
         )
             
             logging.info(f"Flashing complete.")
