@@ -212,7 +212,7 @@ class ESPManager:
 
             with open(firmware_path,"rb") as bin_file:
                 # _write_to_flash(esp, bin_file.read(), target_offset, None)
-                write_flash(self.esp_global, [(bin_file, target_offset)])
+                write_flash(self.esp_global, [(target_offset, bin_file)])
             self.reset_esp32(port, get_info=True)
                 
             logging.info(f"Flashing complete.")
