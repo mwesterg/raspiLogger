@@ -12,11 +12,9 @@ if sys.platform.startswith('linux'):
     import pyudev
 
 from config import SUPPORTED_DEVICES
-from esp_handler import monitor_serial_port, esp32_connection_status, esp_global
 
-def device_event_handler():
+def device_event_handler(esp_manager):
     """Monitors for USB device connections and disconnections (Linux) or periodically scans (Windows)."""
-    global esp_global # Declare esp_global as global to modify it
     if sys.platform.startswith('linux'):
         context = pyudev.Context()
         monitor = pyudev.Monitor.from_netlink(context)
@@ -29,7 +27,7 @@ def device_event_handler():
             for supported_device in SUPPORTED_DEVICES:
                 if device.get('ID_VENDOR_ID') == supported_device["vendor_id"] and device.get('ID_MODEL_ID') == supported_device["product_id"]:
                     logging.info(f"Found pre-existing ESP32 at {device.device_node}")
-                    threading.Thread(target=monitor_serial_port, args=(device.device_node,), daemon=True).start()
+                    threading.Thread(target=esp_manager.monitor_serial_port, args=(device.device_node,), daemon=True).start()
                     break  # Move to the next device
 
         # Monitor for new connections
@@ -41,29 +39,30 @@ def device_event_handler():
                         logging.info(f"ESP32 connected at {device.device_node}")
                         # Give the system a moment to stabilize the device node
                         time.sleep(1)
-                        threading.Thread(target=monitor_serial_port, args=(device.device_node,), daemon=True).start()
+                        threading.Thread(target=esp_manager.monitor_serial_port, args=(device.device_node,), daemon=True).start()
                         break # Move to the next device
             elif action == 'remove':
-                if device.device_node == esp32_connection_status["port"]:
+                if device.device_node == esp_manager.esp32_connection_status["port"]:
                     logging.info(f"ESP32 disconnected from {device.device_node}")
-                    esp32_connection_status["connected"] = False
-                    esp32_connection_status["port"] = None
-                    esp32_connection_status["device_info"] = {
-                        "chip_type": None,
-                        "features": None,
-                        "mac_address": None,
-                        "usb_mode": None,
-                        "app_version": None,
-                        "project_name": None,
-                        "reset_reason": None,
-                        "compile_time": None,
-                        "esp_idf_version": None
-                    }
-                    esp32_connection_status["boot_logs"] = []
-                    esp32_connection_status["boot_timestamp"] = None
-                    esp32_connection_status["is_booting"] = False
-                    esp32_connection_status["cpu_start_count"] = 0 # Reset counter
-                    esp_global = None # Reset global esp object on disconnect
+                    with esp_manager.lock:
+                        esp_manager.esp32_connection_status["connected"] = False
+                        esp_manager.esp32_connection_status["port"] = None
+                        esp_manager.esp32_connection_status["device_info"] = {
+                            "chip_type": None,
+                            "features": None,
+                            "mac_address": None,
+                            "usb_mode": None,
+                            "app_version": None,
+                            "project_name": None,
+                            "reset_reason": [],
+                            "compile_time": None,
+                            "esp_idf_version": None
+                        }
+                        esp_manager.esp32_connection_status["boot_logs"] = []
+                        esp_manager.esp32_connection_status["boot_timestamp"] = None
+                        esp_manager.esp32_connection_status["is_booting"] = False
+                        esp_manager.esp32_connection_status["cpu_start_count"] = 0 # Reset counter
+                        esp_manager.esp_global = None # Reset global esp object on disconnect
             
             # Note: Handling disconnection is implicitly managed by the serial reader thread exiting.
     else: # Windows or other non-Linux OS
@@ -79,7 +78,7 @@ def device_event_handler():
                         if p.vid and p.pid and f'{p.vid:04x}' == supported_device["vendor_id"] and f'{p.pid:04x}' == supported_device["product_id"]:
                             if p.device not in connected_ports:
                                 logging.info(f"Found ESP32 at {p.device}")
-                                threading.Thread(target=monitor_serial_port, args=(p.device,), daemon=True).start()
+                                threading.Thread(target=esp_manager.monitor_serial_port, args=(p.device,), daemon=True).start()
                                 connected_ports[p.device] = True
                             current_ports[p.device] = True
                 
@@ -87,25 +86,26 @@ def device_event_handler():
                 disconnected_ports = [port for port in connected_ports if port not in current_ports]
                 for port in disconnected_ports:
                     logging.info(f"ESP32 disconnected from {port}")
-                    if port == esp32_connection_status["port"]:
-                        esp32_connection_status["connected"] = False
-                        esp32_connection_status["port"] = None
-                        esp32_connection_status["device_info"] = {
-                            "chip_type": None,
-                            "features": None,
-                            "mac_address": None,
-                            "usb_mode": None,
-                            "app_version": None,
-                            "project_name": None,
-                            "reset_reason": None,
-                            "compile_time": None,
-                            "esp_idf_version": None
-                        }
-                        esp32_connection_status["boot_logs"] = []
-                        esp32_connection_status["boot_timestamp"] = None
-                        esp32_connection_status["is_booting"] = False
-                        esp32_connection_status["cpu_start_count"] = 0 # Reset counter
-                        esp_global = None # Reset global esp object on disconnect
+                    with esp_manager.lock:
+                        if port == esp_manager.esp32_connection_status["port"]:
+                            esp_manager.esp32_connection_status["connected"] = False
+                            esp_manager.esp32_connection_status["port"] = None
+                            esp_manager.esp32_connection_status["device_info"] = {
+                                "chip_type": None,
+                                "features": None,
+                                "mac_address": None,
+                                "usb_mode": None,
+                                "app_version": None,
+                                "project_name": None,
+                                "reset_reason": [],
+                                "compile_time": None,
+                                "esp_idf_version": None
+                            }
+                            esp_manager.esp32_connection_status["boot_logs"] = []
+                            esp_manager.esp32_connection_status["boot_timestamp"] = None
+                            esp_manager.esp32_connection_status["is_booting"] = False
+                            esp_manager.esp32_connection_status["cpu_start_count"] = 0 # Reset counter
+                            esp_manager.esp_global = None # Reset global esp object on disconnect
                     del connected_ports[port]
 
                 time.sleep(3) # Scan every 3 seconds

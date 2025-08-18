@@ -10,7 +10,7 @@ import logging # Import logging
 from flask import Blueprint, render_template, jsonify, send_file, request
 
 from database import init_db, add_log_entry, update_other_messages_stat
-from esp_handler import esp32_connection_status, reset_esp32, flash_firmware
+from app import esp_manager
 from config import DATABASE_FILE
 
 routes_bp = Blueprint('routes', __name__)
@@ -61,11 +61,10 @@ def get_filtered_logs(tag):
 @routes_bp.route('/restart_device', methods=['POST'])
 def restart_device():
     """Restarts the connected ESP32 device."""
-    global esp32_connection_status
-    if esp32_connection_status["connected"] and esp32_connection_status["port"]:
+    if esp_manager.esp32_connection_status["connected"] and esp_manager.esp32_connection_status["port"]:
         try:
             # This will trigger a new boot sequence and log capture
-            reset_esp32(esp32_connection_status["port"])
+            esp_manager.reset_esp32(esp_manager.esp32_connection_status["port"])
             return jsonify(success=True, message="Device restart initiated.")
         except Exception as e:
             return jsonify(success=False, message=f"Error restarting device: {e}"), 500
@@ -75,12 +74,12 @@ def restart_device():
 @routes_bp.route('/boot_logs')
 def get_boot_logs():
     """Returns the latest boot logs."""
-    return jsonify(boot_logs=esp32_connection_status["boot_logs"], boot_timestamp=esp32_connection_status["boot_timestamp"])
+    return jsonify(boot_logs=esp_manager.esp32_connection_status["boot_logs"], boot_timestamp=esp_manager.esp32_connection_status["boot_timestamp"])
 
 @routes_bp.route('/connection_status')
 def get_connection_status():
     """Returns the current ESP32 connection status."""
-    return jsonify(esp32_connection_status)
+    return jsonify(esp_manager.esp32_connection_status)
 
 @routes_bp.route('/stats')
 def get_stats():
@@ -160,7 +159,7 @@ def flash_device():
     if firmware_file.filename == '':
         return jsonify(success=False, message="No selected file."), 400
 
-    if esp32_connection_status["connected"] and esp32_connection_status["port"]:
+    if esp_manager.esp32_connection_status["connected"] and esp_manager.esp32_connection_status["port"]:
         try:
             # Save the uploaded file temporarily
             temp_dir = tempfile.gettempdir()
@@ -168,7 +167,7 @@ def flash_device():
             firmware_file.save(firmware_path)
 
             # Call the flashing function in esp_handler
-            output = flash_firmware(esp32_connection_status["port"], firmware_path, "factory_app")
+            output = esp_manager.flash_firmware(esp_manager.esp32_connection_status["port"], firmware_path, "factory_app")
             
             # Clean up the temporary file
             os.remove(firmware_path)

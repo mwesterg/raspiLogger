@@ -1,5 +1,5 @@
 # This file is the main entry point for the Flask web application.
-# It sets up the Flask app, configures logging, registers blueprints, and starts the server.
+# It sets up the Flask app, a new esp_manager instance, configures logging, registers blueprints, and starts the server.
 
 import threading
 from flask import Flask
@@ -24,10 +24,15 @@ root_logger.setLevel(logging.INFO) # Set root logger level to INFO
 
 from database import init_db
 from device_detection import device_event_handler
+from esp_handler import ESPManager
 from routes import routes_bp
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
+
+# Create an instance of ESPManager
+esp_manager = ESPManager()
+
 app.register_blueprint(routes_bp)
 
 # Suppress Werkzeug access logs
@@ -40,7 +45,7 @@ if __name__ == '__main__':
     init_db()
 
     # Start the device monitor in a background thread
-    udev_thread = threading.Thread(target=device_event_handler, daemon=True)
+    udev_thread = threading.Thread(target=device_event_handler, args=(esp_manager,), daemon=True)
     udev_thread.start()
 
     # Start the Flask web server
