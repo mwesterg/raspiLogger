@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
-from esptool import detect_chip, run, write_flash, reset_chip, attach_flash
+from esptool import detect_chip, run, write_flash, reset_chip
 import re
 import logging # Impor
 import threading
@@ -37,7 +37,8 @@ class ESPManager:
             "boot_logs": [],
             "boot_timestamp": None,
             "is_booting": False,
-            "cpu_start_count": 0 # New field
+            "cpu_start_count": 0, # New field
+            "is_flashing": False
         }
 
     def reset_esp32(self, port, get_info=False):
@@ -78,6 +79,9 @@ class ESPManager:
                 time.sleep(2) # Wait for the device to boot
                 
                 while True:
+                    if self.esp32_connection_status["is_flashing"]:
+                        time.sleep(1)
+                        continue
                     try:
                         line = ser.readline().decode('utf-8', errors='ignore').strip()
                         if line:
@@ -110,11 +114,11 @@ class ESPManager:
 
                                 # These regex matches should probably be moved to log_parser or a new device_info_parser
                                 # For now, keeping them here as they directly update esp32_connection_status
-                                app_version_match = re.search(r"App version: (.*?)\x1b", line)
+                                app_version_match = re.search(r"App version: (.*?)\\x1b", line)
                                 if app_version_match:
                                     self.esp32_connection_status["device_info"]["app_version"] = app_version_match.group(1).strip()
 
-                                project_name_match = re.search(r"Project name: (.*?)\x1b", line)
+                                project_name_match = re.search(r"Project name: (.*?)\\x1b", line)
                                 if project_name_match:
                                     self.esp32_connection_status["device_info"]["project_name"] = project_name_match.group(1).strip()
 
@@ -122,16 +126,16 @@ class ESPManager:
                                 if reset_reason_match:
                                     self.esp32_connection_status["device_info"]["reset_reason"].append(reset_reason_match.group(1).strip())
 
-                                compile_time_match = re.search(r"Compile time: (.*?)\x1b", line)
+                                compile_time_match = re.search(r"Compile time: (.*?)\\x1b", line)
                                 if compile_time_match:
                                     self.esp32_connection_status["device_info"]["compile_time"] = compile_time_match.group(1).strip()
 
-                                esp_idf_version_match = re.search(r"ESP-IDF version: (.*?)\x1b", line)
+                                esp_idf_version_match = re.search(r"ESP-IDF version: (.*?)\\x1b", line)
                                 if esp_idf_version_match:
                                     self.esp32_connection_status["device_info"]["esp_idf_version"] = esp_idf_version_match.group(1).strip()
 
                                 logging.debug(f"is_booting: {self.esp32_connection_status['is_booting']}")
-                                if not self.esp32_connection_status["is_booting"]: # Only add to info logs if not in boot sequence
+                                if not self.esp32_connection_status["is_booting"]:
                                     parsed_log = parse_log_message(line)
                                     logging.debug(f"Parsed log: {parsed_log}")
                                     if parsed_log:
@@ -181,28 +185,29 @@ class ESPManager:
     def flash_firmware(self, port, firmware_path, partition_name):
         """Flashes firmware to the ESP32 device using esptool."""
         with self.lock:
-            try:
-                logging.info(f"Connecting to ESP device at {port}...")
-                target_offset = 0x10000
-                esp = self.esp_global.run_stub()
-                
+            self.esp32_connection_status["is_flashing"] = True
+        try:
+            logging.info(f"Connecting to ESP device at {port}...")
 
-                logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+            # esp = self.esp_global.run_stub()
+            target_offset = 0x10000
+
+            logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+            
+            write_flash(
+            esp=self.esp_global.run_stub(),
+            args=None,   # CLI args object is optional here
+            address_filename=[(target_offset, firmware_path)],
+            flash_size="detect",
+            no_progress=False,
+            encrypt=False
+            )
                 
-                attach_flash(esp)
-                with open(firmware_path,"rb") as fw_file:
-                    write_flash(
-                        esp=esp,
-                        args=None,   # CLI args object is optional here
-                        address_filename=[(target_offset, fw_file)],
-                        flash_size="detect",
-                        no_progress=False,
-                        encrypt=False
-                    )
-                    
-                logging.info(f"Flashing complete.")
-                return "Flashing successful."
-            except Exception as e:
-                logging.error(f"Error during flashing: {e}")
-                raise # Re-raise the exception to be caught by the route
- 
+            logging.info(f"Flashing complete.")
+            return "Flashing successful."
+        except Exception as e:
+            logging.error(f"Error during flashing: {e}")
+            raise # Re-raise the exception to be caught by the route
+        finally:
+            with self.lock:
+                self.esp32_connection_status["is_flashing"] = False
