@@ -1,18 +1,20 @@
 # This file handles interactions with the ESP32 device, including serial communication,
 # boot log detection, device information retrieval, and firmware flashing.
-
+import sys
 import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
-import esptool
-from esptool import detect_chip, reset_chip
+from esptool import detect_chip, run, write_flash
 import re
 import logging # Import logging
 
 from config import SUPPORTED_DEVICES, SERIAL_BAUDRATE
 from database import add_log_entry, update_other_messages_stat
 from log_parser import parse_log_message
+
+sys.path.append("esptools")
+import parttool
 
 esp_global = None
 
@@ -50,7 +52,7 @@ def reset_esp32(port, get_info=False):
             logging.info(f"Using existing ESP object for {port}...")
 
         logging.info(f"Resetting ESP32 at {port} using esptool...")
-        reset_chip(esp_global, reset_mode="hard-reset")
+        run(esp_global, reset_mode="hard-reset")
         # Boot log capture will now be triggered by "rst:0x" message
         logging.info(f"ESP32 at {port} reset successfully.")
 
@@ -176,26 +178,20 @@ def flash_firmware(port, firmware_path, partition_name):
     global esp_global
     try:
         logging.info(f"Connecting to ESP device at {port}...")
-        with esptool.ESP.connect(port) as local_esp:
 
-            # Read partition table
-            logging.info("Reading partition table...")
-            partitions = local_esp.read_partition_table()
-            logging.debug(f"Partition table: {partitions}")
-
-            target_offset = None
-            for p in partitions:
-                if p.name == partition_name:
-                    target_offset = p.offset
-                    break
-            
-            if target_offset is None:
-                raise ValueError(f"Partition '{partition_name}' not found in device's partition table.")
-
+            esp = esp_global.run_stub()
+            target_offset = 0x10000
+   
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
             
-            with open(firmware_path, 'rb') as f:
-                                    local_esp.write_flash([(target_offset, f)])
+            write_flash(
+            esp=esp,
+            args=None,   # CLI args object is optional here
+            address_filename=[(target_offset, firmware_path)],
+            flash_size="detect",
+            no_progress=False,
+            encrypt=False
+        )
             
             logging.info(f"Flashing complete.")
             return "Flashing successful."
