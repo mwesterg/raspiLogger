@@ -6,6 +6,7 @@ from datetime import datetime
 import serial
 import serial.tools.list_ports 
 from esptool.cmds import detect_chip, run, write_flash, reset_chip
+from esptool import ESPLoader
 import re
 import logging # Impor
 import threading
@@ -45,7 +46,7 @@ class ESPManager:
         """Resets the ESP32 device using esptool. Optionally gets device info."""
         with self.lock:
             try:
-                if get_info or self.esp_global is None: # If it's a new connection or esp_global is not set
+                if get_info and self.esp_global is None: # If it's a new connection or esp_global is not set
                     logging.info(f"Detecting chip at {port}...")
                     self.esp_global = detect_chip(port=port)
                     logging.info("Getting device info...")
@@ -189,20 +190,21 @@ class ESPManager:
         try:
             logging.info(f"Connecting to ESP device at {port}...")
 
-            # esp = self.esp_global.run_stub()
+            esp = ESPLoader.detect_chip(port)
+            esp = esp.run_stub()
             target_offset = 0x10000
 
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
             
             write_flash(
-            esp=self.esp_global.run_stub(),
+            esp=esp,
             args=None,   # CLI args object is optional here
             address_filename=[(target_offset, firmware_path)],
             flash_size="detect",
             no_progress=False,
             encrypt=False
             )
-            reset_chip(self.esp_global, "hard-reset")  # Reset the chip
+            self.reset_esp32(port, get_info=True)
                 
             logging.info(f"Flashing complete.")
             return "Flashing successful."
