@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
+import esptool
 from esptool import detect_chip, reset_chip
 import re
 import logging # Import logging
