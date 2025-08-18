@@ -183,11 +183,24 @@ class ESPManager:
         except serial.SerialException as e:
             logging.error(f"Could not open serial port {device_path}: {e}")
 
-    def flash_firmware(self, port, firmware_path, partition_name):
-        """Flashes firmware to the ESP32 device using esptool."""
-        with self.lock:
-            self.esp32_connection_status["is_flashing"] = True
-        try:
+def _write_to_flash(chip, binary_data, offset):
+    """
+    Writes binary data to the ESP32 flash at the specified offset.
+    """
+    chip.flash_begin(len(binary_data), offset)
+    for i in range(0, len(binary_data), chip.FLASH_WRITE_SIZE):
+        block = binary_data[i : i + chip.FLASH_WRITE_SIZE]
+        block = block + bytes([0xFF]) * (chip.FLASH_WRITE_SIZE - len(block))
+        chip.flash_block(block, i + offset)
+
+        cur_percent = ((i + len(block)) / len(binary_data)) * 100
+    chip.flash_finish()
+
+def flash_firmware(self, port, firmware_path, partition_name):
+    """Flashes firmware to the ESP32 device using esptool."""
+    with self.lock:
+        self.esp32_connection_status["is_flashing"] = True
+    try:
             logging.info(f"Connecting to ESP device at {port}...")
 
             # esp = detect_chip(port)
@@ -199,10 +212,7 @@ class ESPManager:
             # reset_chip(self.esp_global, reset_mode="hard-reset")
 
             with open(firmware_path,"rb") as bin_file:
-                write_flash(
-                    esp,
-                    [(target_offset, bin_file)]
-                )
+                _write_to_flash(esp, bin_file.read(), target_offset, None)
             self.reset_esp32(port, get_info=True)
                 
             logging.info(f"Flashing complete.")
