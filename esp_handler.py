@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
-from esptool import detect_chip, reset_chip, read_partition_table, write_flash
+from esptool import detect_chip, reset_chip
 import re
 import logging # Import logging
 
@@ -179,7 +179,7 @@ def flash_firmware(port, firmware_path, partition_name):
 
             # Read partition table
             logging.info("Reading partition table...")
-            partitions = read_partition_table(local_esp)
+            partitions = local_esp.read_partition_table()
             logging.debug(f"Partition table: {partitions}")
 
             target_offset = None
@@ -194,7 +194,7 @@ def flash_firmware(port, firmware_path, partition_name):
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
             
             with open(firmware_path, 'rb') as f:
-                write_flash(local_esp, [(target_offset, f)])
+                                    local_esp.write_flash([(target_offset, f)])
             
             logging.info(f"Flashing complete.")
             return "Flashing successful."
