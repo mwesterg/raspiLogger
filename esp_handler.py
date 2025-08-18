@@ -181,24 +181,24 @@ def flash_firmware(port, firmware_path, partition_name):
         # Read partition table
         logging.info("Reading partition table...")
         partitions = esp_global.read_partition_table()
-        print(f"Partition table: {partitions}")
+        logging.debug(f"Partition table: {partitions}")
 
         target_offset = None
         for p in partitions:
             if p.name == partition_name:
                 target_offset = p.offset
                 break
-        print(f"Target offset for partition '{partition_name}': {target_offset}")
+        
         if target_offset is None:
             raise ValueError(f"Partition '{partition_name}' not found in device's partition table.")
 
         logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
         
         with open(firmware_path, 'rb') as f:
-            bytes_written, output_string = write_flash(esp_global, [(target_offset, f)])
+            write_flash(esp_global, [(target_offset, f)])
         
-        logging.info(f"Flashing complete. Bytes written: {bytes_written}")
-        return output_string
+        logging.info(f"Flashing complete.")
+        return "Flashing successful."
     except Exception as e:
         logging.error(f"Error during flashing: {e}")
         raise # Re-raise the exception to be caught by the route

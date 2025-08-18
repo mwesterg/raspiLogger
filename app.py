@@ -27,6 +27,7 @@ from device_detection import device_event_handler
 from routes import routes_bp
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 app.register_blueprint(routes_bp)
 
 # Suppress Werkzeug access logs
