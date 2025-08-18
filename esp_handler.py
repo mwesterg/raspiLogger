@@ -203,11 +203,11 @@ class ESPManager:
         try:
             logging.info(f"Connecting to ESP device at {port}...")
 
-            # esp = detect_chip(port)
+            self.esp_global.connect()
             # esp = run_stub(self.esp_global)  # Skip this line to avoid running the stub flasher
             attach_flash(self.esp_global)  # Attach the flash memory chip, required for flash operations
             target_offset = 0x10000
-            time.sleep(.1)  # Give some time for the chip to initialize
+            time.sleep(.2)  # Give some time for the chip to initialize
             
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
 
