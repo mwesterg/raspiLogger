@@ -185,7 +185,7 @@ def flash_firmware(port, firmware_path, partition_name):
         logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
         
         write_flash(
-        esp=esp_global,
+        esp=esp_global.run_stub(),
         args=None,   # CLI args object is optional here
         address_filename=[(target_offset, firmware_path)],
         flash_size="detect",
