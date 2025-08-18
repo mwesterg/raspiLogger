@@ -183,43 +183,43 @@ class ESPManager:
         except serial.SerialException as e:
             logging.error(f"Could not open serial port {device_path}: {e}")
 
-def _write_to_flash(chip, binary_data, offset):
-    """
-    Writes binary data to the ESP32 flash at the specified offset.
-    """
-    chip.flash_begin(len(binary_data), offset)
-    for i in range(0, len(binary_data), chip.FLASH_WRITE_SIZE):
-        block = binary_data[i : i + chip.FLASH_WRITE_SIZE]
-        block = block + bytes([0xFF]) * (chip.FLASH_WRITE_SIZE - len(block))
-        chip.flash_block(block, i + offset)
+    def _write_to_flash(chip, binary_data, offset):
+        """
+        Writes binary data to the ESP32 flash at the specified offset.
+        """
+        chip.flash_begin(len(binary_data), offset)
+        for i in range(0, len(binary_data), chip.FLASH_WRITE_SIZE):
+            block = binary_data[i : i + chip.FLASH_WRITE_SIZE]
+            block = block + bytes([0xFF]) * (chip.FLASH_WRITE_SIZE - len(block))
+            chip.flash_block(block, i + offset)
 
-        cur_percent = ((i + len(block)) / len(binary_data)) * 100
-    chip.flash_finish()
+            cur_percent = ((i + len(block)) / len(binary_data)) * 100
+        chip.flash_finish()
 
-def flash_firmware(self, port, firmware_path, partition_name):
-    """Flashes firmware to the ESP32 device using esptool."""
-    with self.lock:
-        self.esp32_connection_status["is_flashing"] = True
-    try:
-        logging.info(f"Connecting to ESP device at {port}...")
-
-        # esp = detect_chip(port)
-        esp = run_stub(self.esp_global)  # Skip this line to avoid running the stub flasher
-        attach_flash(esp)  # Attach the flash memory chip, required for flash operations
-        target_offset = 0x10000
-
-        logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
-        # reset_chip(self.esp_global, reset_mode="hard-reset")
-
-        with open(firmware_path,"rb") as bin_file:
-            _write_to_flash(esp, bin_file.read(), target_offset, None)
-        self.reset_esp32(port, get_info=True)
-            
-        logging.info(f"Flashing complete.")
-        return "Flashing successful."
-    except Exception as e:
-        logging.error(f"Error during flashing: {e}")
-        raise # Re-raise the exception to be caught by the route
-    finally:
+    def flash_firmware(self, port, firmware_path, partition_name):
+        """Flashes firmware to the ESP32 device using esptool."""
         with self.lock:
-            self.esp32_connection_status["is_flashing"] = False
+            self.esp32_connection_status["is_flashing"] = True
+        try:
+            logging.info(f"Connecting to ESP device at {port}...")
+
+            # esp = detect_chip(port)
+            esp = run_stub(self.esp_global)  # Skip this line to avoid running the stub flasher
+            attach_flash(esp)  # Attach the flash memory chip, required for flash operations
+            target_offset = 0x10000
+
+            logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+
+            with open(firmware_path,"rb") as bin_file:
+                _write_to_flash(esp, bin_file.read(), target_offset, None)
+            
+            self.reset_esp32(port, get_info=True)
+                
+            logging.info(f"Flashing complete.")
+            return "Flashing successful."
+        except Exception as e:
+            logging.error(f"Error during flashing: {e}")
+            raise # Re-raise the exception to be caught by the route
+        finally:
+            with self.lock:
+                self.esp32_connection_status["is_flashing"] = False
