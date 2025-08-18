@@ -190,14 +190,14 @@ class ESPManager:
         try:
             logging.info(f"Connecting to ESP device at {port}...")
 
-            esp = detect_chip(port)
-            esp = esp.run_stub()
+            # esp = detect_chip(port)
+            # esp = esp.run_stub()
             target_offset = 0x10000
 
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
             
             write_flash(
-            esp=esp,
+            esp=self.esp_global,
             args=None,   # CLI args object is optional here
             address_filename=[(target_offset, firmware_path)],
             flash_size="detect",
