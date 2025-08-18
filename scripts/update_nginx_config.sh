@@ -13,7 +13,7 @@ echo "All dependencies are satisfied."
 
 # --- Nginx Configuration Update (using stow) ---
 echo "Updating Nginx configuration using stow..."
-NGINX_STOW_DIR="$(dirname "$0")"/nginx # Relative to the script's location
+NGINX_STOW_DIR="$(dirname "$0")" # Relative to the script's location
 NGINX_CONF_NAME="raspiLogger.nginx.conf"
 NGINX_SITES_AVAILABLE="/etc/nginx/sites-available/$NGINX_CONF_NAME"
 NGINX_SITES_ENABLED="/etc/nginx/sites-enabled/$NGINX_CONF_NAME"
