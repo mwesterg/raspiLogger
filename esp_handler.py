@@ -204,15 +204,15 @@ class ESPManager:
             logging.info(f"Connecting to ESP device at {port}...")
 
             # esp = detect_chip(port)
-            esp = run_stub(self.esp_global)  # Skip this line to avoid running the stub flasher
-            attach_flash(esp)  # Attach the flash memory chip, required for flash operations
+            # esp = run_stub(self.esp_global)  # Skip this line to avoid running the stub flasher
+            attach_flash(self.esp_global)  # Attach the flash memory chip, required for flash operations
             target_offset = 0x10000
 
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
 
             with open(firmware_path,"rb") as bin_file:
-                _write_to_flash(esp, bin_file.read(), target_offset, None)
-            
+                # _write_to_flash(esp, bin_file.read(), target_offset, None)
+                write_flash(self.esp_global, [(bin_file, target_offset)])
             self.reset_esp32(port, get_info=True)
                 
             logging.info(f"Flashing complete.")
