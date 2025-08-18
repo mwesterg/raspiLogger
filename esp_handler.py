@@ -195,7 +195,11 @@ def flash_firmware(port, firmware_path, partition_name):
         logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
         
         with open(firmware_path, 'rb') as f:
-            write_flash(esp_global, [(target_offset, f)])
+            try:
+                write_flash(esp_global, [(target_offset, f)])
+            except Exception as e:
+                logging.error(f"Error in write_flash: {e}")
+                raise e
         
         logging.info(f"Flashing complete.")
         return "Flashing successful."
