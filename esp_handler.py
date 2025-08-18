@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
-from esptool import detect_chip, run, write_flash, reset_chip
+from esptool import detect_chip, run, write_flash, reset_chip, attach_flash
 import re
 import logging # Impor
 import threading
@@ -183,20 +183,22 @@ class ESPManager:
         with self.lock:
             try:
                 logging.info(f"Connecting to ESP device at {port}...")
-
-                esp = self.esp_global.run_stub()
                 target_offset = 0x10000
+                esp = self.esp_global.run_stub()
+                
 
                 logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
                 
-                write_flash(
-                esp=esp,
-                args=None,   # CLI args object is optional here
-                address_filename=[(target_offset, firmware_path)],
-                flash_size="detect",
-                no_progress=False,
-                encrypt=False
-                )
+                attach_flash(esp)
+                with open(firmware_path,"rb") as fw_file:
+                    write_flash(
+                        esp=esp,
+                        args=None,   # CLI args object is optional here
+                        address_filename=[(target_offset, fw_file)],
+                        flash_size="detect",
+                        no_progress=False,
+                        encrypt=False
+                    )
                     
                 logging.info(f"Flashing complete.")
                 return "Flashing successful."
