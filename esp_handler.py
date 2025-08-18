@@ -195,14 +195,11 @@ class ESPManager:
             target_offset = 0x10000
 
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+            
             with open(firmware_path,"rb") as bin_file:
                 write_flash(
-                    esp=self.esp_global,
-                    args=None,   # CLI args object is optional here
-                    address_filename=[(target_offset, bin_file)],
-                    flash_size="detect",
-                    no_progress=False,
-                    encrypt=False
+                    self.esp_global,
+                    [(target_offset, bin_file)]
                 )
             self.reset_esp32(port, get_info=True)
                 
