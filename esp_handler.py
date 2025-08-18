@@ -193,8 +193,8 @@ def flash_firmware(port, firmware_path, partition_name):
         encrypt=False
         )
             
-            logging.info(f"Flashing complete.")
-            return "Flashing successful."
+        logging.info(f"Flashing complete.")
+        return "Flashing successful."
     except Exception as e:
         logging.error(f"Error during flashing: {e}")
         raise # Re-raise the exception to be caught by the route
