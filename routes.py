@@ -7,10 +7,9 @@ from datetime import datetime
 import sqlite3
 import logging # Import logging
 
-from flask import Blueprint, render_template, jsonify, send_file, request
+from flask import Blueprint, render_template, jsonify, send_file, request, current_app
 
 from database import init_db, add_log_entry, update_other_messages_stat
-from app import esp_manager
 from config import DATABASE_FILE
 
 routes_bp = Blueprint('routes', __name__)
@@ -61,6 +60,7 @@ def get_filtered_logs(tag):
 @routes_bp.route('/restart_device', methods=['POST'])
 def restart_device():
     """Restarts the connected ESP32 device."""
+    esp_manager = current_app.esp_manager
     if esp_manager.esp32_connection_status["connected"] and esp_manager.esp32_connection_status["port"]:
         try:
             # This will trigger a new boot sequence and log capture
@@ -74,11 +74,13 @@ def restart_device():
 @routes_bp.route('/boot_logs')
 def get_boot_logs():
     """Returns the latest boot logs."""
+    esp_manager = current_app.esp_manager
     return jsonify(boot_logs=esp_manager.esp32_connection_status["boot_logs"], boot_timestamp=esp_manager.esp32_connection_status["boot_timestamp"])
 
 @routes_bp.route('/connection_status')
 def get_connection_status():
     """Returns the current ESP32 connection status."""
+    esp_manager = current_app.esp_manager
     return jsonify(esp_manager.esp32_connection_status)
 
 @routes_bp.route('/stats')
@@ -152,6 +154,7 @@ def reset_database():
 @routes_bp.route('/flash_device', methods=['POST'])
 def flash_device():
     """Flashes a binary to the ESP32 device."""
+    esp_manager = current_app.esp_manager
     if 'firmware' not in request.files:
         return jsonify(success=False, message="No firmware file provided."), 400
 

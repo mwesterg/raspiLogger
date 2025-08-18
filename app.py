@@ -34,6 +34,7 @@ app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 esp_manager = ESPManager()
 
 app.register_blueprint(routes_bp)
+app.esp_manager = esp_manager
 
 # Suppress Werkzeug access logs
 log = logging.getLogger('werkzeug')
