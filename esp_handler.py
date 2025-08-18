@@ -174,35 +174,34 @@ def flash_firmware(port, firmware_path, partition_name):
     """Flashes firmware to the ESP32 device using esptool."""
     global esp_global
     try:
-        if esp_global is None:
-            logging.info(f"Detecting chip for flashing at {port}...")
-            esp_global = detect_chip(port=port)
-        
-        # Read partition table
-        logging.info("Reading partition table...")
-        partitions = esp_global.read_partition_table()
-        logging.debug(f"Partition table: {partitions}")
+        logging.info(f"Connecting to ESP device at {port}...")
+        with esptool.ESP.connect(port) as local_esp:
 
-        target_offset = None
-        for p in partitions:
-            if p.name == partition_name:
-                target_offset = p.offset
-                break
-        
-        if target_offset is None:
-            raise ValueError(f"Partition '{partition_name}' not found in device's partition table.")
+            # Read partition table
+            logging.info("Reading partition table...")
+            partitions = local_esp.read_partition_table()
+            logging.debug(f"Partition table: {partitions}")
 
-        logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
-        
-        with open(firmware_path, 'rb') as f:
-            try:
-                write_flash(esp_global, [(target_offset, f)])
-            except Exception as e:
-                logging.error(f"Error in write_flash: {e}")
-                raise e
-        
-        logging.info(f"Flashing complete.")
-        return "Flashing successful."
+            target_offset = None
+            for p in partitions:
+                if p.name == partition_name:
+                    target_offset = p.offset
+                    break
+            
+            if target_offset is None:
+                raise ValueError(f"Partition '{partition_name}' not found in device's partition table.")
+
+            logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
+            
+            with open(firmware_path, 'rb') as f:
+                try:
+                    local_esp.write_flash([(target_offset, f)])
+                except Exception as e:
+                    logging.error(f"Error in write_flash: {e}")
+                    raise e
+            
+            logging.info(f"Flashing complete.")
+            return "Flashing successful."
     except Exception as e:
         logging.error(f"Error during flashing: {e}")
         raise # Re-raise the exception to be caught by the route
