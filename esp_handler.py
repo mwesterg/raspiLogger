@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
-from esptool import detect_chip, run, write_flash, reset_chip
+from esptool.cmds import detect_chip, run, write_flash, reset_chip
 import re
 import logging # Impor
 import threading
@@ -202,6 +202,7 @@ class ESPManager:
             no_progress=False,
             encrypt=False
             )
+            reset_chip(self.esp_global, "hard-reset")  # Reset the chip
                 
             logging.info(f"Flashing complete.")
             return "Flashing successful."
