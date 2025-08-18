@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
-from esptool import detect_chip, run, write_flash
+from esptool import detect_chip, run, write_flash, reset_chip
 import re
 import logging # Import logging
 
@@ -52,7 +52,7 @@ def reset_esp32(port, get_info=False):
             logging.info(f"Using existing ESP object for {port}...")
 
         logging.info(f"Resetting ESP32 at {port} using esptool...")
-        run(esp_global, reset_mode="hard-reset")
+        reset_chip(esp_global, reset_mode="hard-reset")
         # Boot log capture will now be triggered by "rst:0x" message
         logging.info(f"ESP32 at {port} reset successfully.")
 
