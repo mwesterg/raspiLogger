@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import serial
 import serial.tools.list_ports 
-from esptool.cmds import detect_chip, run, write_flash, reset_chip
+from esptool.cmds import detect_chip, run, write_flash, reset_chip, run_stub, attach_flash
 from esptool import ESPLoader
 import re
 import logging # Impor
@@ -191,15 +191,16 @@ class ESPManager:
             logging.info(f"Connecting to ESP device at {port}...")
 
             # esp = detect_chip(port)
-            # esp = esp.run_stub()
+            esp = run_stub(self.esp_global)  # Skip this line to avoid running the stub flasher
+            attach_flash(esp)  # Attach the flash memory chip, required for flash operations
             target_offset = 0x10000
 
             logging.info(f"Flashing {firmware_path} to partition '{partition_name}' at offset 0x{target_offset:x} on {port}...")
-            reset_chip(self.esp_global, reset_mode="hard-reset")
+            # reset_chip(self.esp_global, reset_mode="hard-reset")
 
             with open(firmware_path,"rb") as bin_file:
                 write_flash(
-                    self.esp_global,
+                    esp,
                     [(target_offset, bin_file)]
                 )
             self.reset_esp32(port, get_info=True)
