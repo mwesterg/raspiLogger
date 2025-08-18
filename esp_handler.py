@@ -190,7 +190,7 @@ class ESPManager:
         try:
             logging.info(f"Connecting to ESP device at {port}...")
 
-            esp = ESPLoader.detect_chip(port)
+            esp = detect_chip(port)
             esp = esp.run_stub()
             target_offset = 0x10000
 
