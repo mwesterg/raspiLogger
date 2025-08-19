@@ -29,8 +29,9 @@ function fetchConnectionStatus() {
                     if (data.device_info.project_name) {
                         deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Project:</span> ${data.device_info.project_name}</span>`;
                     }
-                    if (data.device_info.reset_reason) {
-                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Reset:</span> ${data.device_info.reset_reason}</span>`;
+                    if (data.device_info.reset_reason && data.device_info.reset_reason.length > 0) {
+                        const lastReset = data.device_info.reset_reason[data.device_info.reset_reason.length - 1];
+                        deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Last Reset:</span> ${lastReset.reason} (${lastReset.timestamp})</span>`;
                     }
                     if (data.device_info.compile_time) {
                         deviceInfoHTML += `<span><span class="font-semibold text-gray-400">Compile:</span> ${data.device_info.compile_time}</span>`;
