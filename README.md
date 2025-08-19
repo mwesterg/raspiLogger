@@ -145,7 +145,7 @@ To connect your ESP32 device to the Raspberry Pi, simply connect it via a USB ca
 ## Architecture
 
 ![RaspiLogger Application Architecture](
-     images/raspiLogger_architecture.png)
+     Images/raspiLogger_architecture.png)
 
 ## Project Structure
 
