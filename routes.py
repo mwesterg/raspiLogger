@@ -5,11 +5,11 @@ import csv
 import tempfile
 from datetime import datetime
 import sqlite3
+import logging # Import logging
 
-from flask import Blueprint, render_template, jsonify, send_file, request
+from flask import Blueprint, render_template, jsonify, send_file, request, current_app
 
 from database import init_db, add_log_entry, update_other_messages_stat
-from esp_handler import esp32_connection_status, reset_esp32, flash_firmware
 from config import DATABASE_FILE
 
 routes_bp = Blueprint('routes', __name__)
@@ -60,11 +60,11 @@ def get_filtered_logs(tag):
 @routes_bp.route('/restart_device', methods=['POST'])
 def restart_device():
     """Restarts the connected ESP32 device."""
-    global esp32_connection_status
-    if esp32_connection_status["connected"] and esp32_connection_status["port"]:
+    esp_manager = current_app.esp_manager
+    if esp_manager.esp32_connection_status["connected"] and esp_manager.esp32_connection_status["port"]:
         try:
             # This will trigger a new boot sequence and log capture
-            reset_esp32(esp32_connection_status["port"])
+            esp_manager.reset_esp32(esp_manager.esp32_connection_status["port"])
             return jsonify(success=True, message="Device restart initiated.")
         except Exception as e:
             return jsonify(success=False, message=f"Error restarting device: {e}"), 500
@@ -74,12 +74,14 @@ def restart_device():
 @routes_bp.route('/boot_logs')
 def get_boot_logs():
     """Returns the latest boot logs."""
-    return jsonify(boot_logs=esp32_connection_status["boot_logs"], boot_timestamp=esp32_connection_status["boot_timestamp"])
+    esp_manager = current_app.esp_manager
+    return jsonify(boot_logs=esp_manager.esp32_connection_status["boot_logs"], boot_timestamp=esp_manager.esp32_connection_status["boot_timestamp"])
 
 @routes_bp.route('/connection_status')
 def get_connection_status():
     """Returns the current ESP32 connection status."""
-    return jsonify(esp32_connection_status)
+    esp_manager = current_app.esp_manager
+    return jsonify(esp_manager.esp32_connection_status)
 
 @routes_bp.route('/stats')
 def get_stats():
@@ -143,15 +145,16 @@ def reset_database():
             # Reset all statistic counters to 0
             cursor.execute('UPDATE stats SET value = 0')
             conn.commit()
-        print("Database has been reset successfully.")
+        logging.info("Database has been reset successfully.")
         return jsonify(success=True, message="All logs and statistics have been reset.")
     except Exception as e:
-        print(f"Error resetting database: {e}")
+        logging.error(f"Error resetting database: {e}")
         return jsonify(success=False, message="An error occurred during reset."), 500
 
 @routes_bp.route('/flash_device', methods=['POST'])
 def flash_device():
     """Flashes a binary to the ESP32 device."""
+    esp_manager = current_app.esp_manager
     if 'firmware' not in request.files:
         return jsonify(success=False, message="No firmware file provided."), 400
 
@@ -159,7 +162,7 @@ def flash_device():
     if firmware_file.filename == '':
         return jsonify(success=False, message="No selected file."), 400
 
-    if esp32_connection_status["connected"] and esp32_connection_status["port"]:
+    if esp_manager.esp32_connection_status["connected"] and esp_manager.esp32_connection_status["port"]:
         try:
             # Save the uploaded file temporarily
             temp_dir = tempfile.gettempdir()
@@ -167,7 +170,7 @@ def flash_device():
             firmware_file.save(firmware_path)
 
             # Call the flashing function in esp_handler
-            output = flash_firmware(esp32_connection_status["port"], firmware_path, "factory_app")
+            output = esp_manager.flash_firmware(esp_manager.esp32_connection_status["port"], firmware_path, "factory_app")
             
             # Clean up the temporary file
             os.remove(firmware_path)
@@ -177,3 +180,31 @@ def flash_device():
             return jsonify(success=False, message=f"Error flashing device: {e}", output=str(e)), 500
     else:
         return jsonify(success=False, message="No ESP32 device connected."), 400
+
+@routes_bp.route('/all_logs/<level>')
+def get_all_logs(level):
+    """Returns all log messages for a specific level."""
+    level = level.upper()
+    allowed_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR']
+    if level not in allowed_levels:
+        return jsonify(error="Invalid log level"), 404
+
+    with sqlite3.connect(DATABASE_FILE, check_same_thread=False) as conn: 
+        conn.row_factory = sqlite3.Row # Allows accessing columns by name
+        cursor = conn.cursor()
+        
+        query = f"SELECT timestamp, tag, message FROM {level} ORDER BY received_at ASC"
+        cursor.execute(query)
+        logs = [dict(row) for row in cursor.fetchall()]
+    return jsonify(logs)
+
+@routes_bp.route('/app_logs')
+def get_app_logs():
+    """Returns the content of the application log file."""
+    log_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app.log')
+    if os.path.exists(log_file_path):
+        with open(log_file_path, 'r', encoding='utf-8') as f:
+            logs = f.read()
+        return jsonify(logs=logs)
+    else:
+        return jsonify(logs="No application logs found."), 404

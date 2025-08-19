@@ -198,6 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const viewAllLogsModal = document.getElementById('view-all-logs-modal');
+    const closeViewAllLogsModalBtn = document.getElementById('close-view-all-logs-modal-btn');
+    const viewAllLogsTitle = document.getElementById('view-all-logs-title');
+    const viewAllLogsContent = document.getElementById('view-all-logs-content');
+
     if (startFlashBtn) {
         startFlashBtn.addEventListener('click', () => {
             const file = firmwareFileInput.files[0];
@@ -226,6 +231,69 @@ document.addEventListener('DOMContentLoaded', () => {
                 flashOutput.innerHTML += `<p class="text-red-500">Error during flash: ${error}</p>`;
                 console.error('Error:', error);
             });
+        });
+    }
+
+    document.querySelectorAll('.view-all-logs-btn').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const logLevel = event.target.dataset.logLevel;
+            viewAllLogsTitle.textContent = `All ${logLevel} Logs`;
+            viewAllLogsContent.innerHTML = '<p class="text-gray-500">Loading...</p>';
+            viewAllLogsModal.classList.remove('hidden');
+
+            fetch(`/all_logs/${logLevel}`)
+                .then(response => response.json())
+                .then(logs => {
+                    viewAllLogsContent.innerHTML = '';
+                    if (logs.length > 0) {
+                        logs.forEach(log => {
+                            viewAllLogsContent.innerHTML += `<div>(${log.timestamp}) ${log.tag}: ${log.message}</div>`;
+                        });
+                    } else {
+                        viewAllLogsContent.innerHTML = '<p class="text-gray-500">No logs found for this level.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching all logs:', error);
+                    viewAllLogsContent.innerHTML = '<p class="text-red-500">Error loading logs.</p>';
+                });
+        });
+    });
+
+    if (closeViewAllLogsModalBtn) {
+        closeViewAllLogsModalBtn.addEventListener('click', () => {
+            viewAllLogsModal.classList.add('hidden');
+        });
+    }
+
+    const viewAppLogsButton = document.getElementById('view-app-logs-button');
+    const appLogsModal = document.getElementById('app-logs-modal');
+    const closeAppLogsModalBtn = document.getElementById('close-app-logs-modal-btn');
+    const appLogsContent = document.getElementById('app-logs-content');
+
+    if (viewAppLogsButton) {
+        viewAppLogsButton.addEventListener('click', () => {
+            appLogsModal.classList.remove('hidden');
+            appLogsContent.innerHTML = '<p class="text-gray-500">Loading application logs...</p>';
+            fetch('/app_logs')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logs) {
+                        appLogsContent.textContent = data.logs;
+                    } else {
+                        appLogsContent.innerHTML = `<p class="text-red-500">${data.message || 'Error loading logs.'}</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching app logs:', error);
+                    appLogsContent.innerHTML = '<p class="text-red-500">Error loading application logs.</p>';
+                });
+        });
+    }
+
+    if (closeAppLogsModalBtn) {
+        closeAppLogsModalBtn.addEventListener('click', () => {
+            appLogsModal.classList.add('hidden');
         });
     }
 });

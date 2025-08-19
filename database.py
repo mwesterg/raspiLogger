@@ -1,4 +1,5 @@
-# database.py
+# This file handles all database-related operations, including initialization,
+# adding log entries, and updating statistics.
 
 import sqlite3
 from config import DATABASE_FILE, MAX_LOG_ENTRIES
