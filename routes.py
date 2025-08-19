@@ -208,3 +208,9 @@ def get_app_logs():
         return jsonify(logs=logs)
     else:
         return jsonify(logs="No application logs found."), 404
+
+@routes_bp.route('/reset_reasons')
+def get_reset_reasons():
+    """Returns the stored reset reasons with timestamps."""
+    esp_manager = current_app.esp_manager
+    return jsonify(esp_manager.esp32_connection_status["device_info"]["reset_reason"])

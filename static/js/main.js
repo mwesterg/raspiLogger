@@ -5,6 +5,7 @@ import { fetchStats } from './stats.js';
 import { logLevels, fetchLogsForLevel } from './log_feeds.js';
 import './modals.js'; // Import modals to ensure event listeners are set up
 import './sidebar_toggle.js'; // Import sidebar_toggle to ensure event listeners are set up
+import './reset_reasons.js'; // Import reset_reasons to ensure event listeners are set up
 
 
 // Fetch initial data on page load

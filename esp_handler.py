@@ -31,7 +31,7 @@ class ESPManager:
                 "mac_address": None,
                 "app_version": None,
                 "project_name": None,
-                "reset_reason": [],
+                "reset_reason": [], # This will now store dicts: {'reason': '...', 'timestamp': '...'}
                 "compile_time": None,
                 "esp_idf_version": None
             },
@@ -125,7 +125,9 @@ class ESPManager:
 
                                 reset_reason_match = re.search(r"rst:0x[0-9a-f]+ \(([^)]+)\)", line)
                                 if reset_reason_match:
-                                    self.esp32_connection_status["device_info"]["reset_reason"].append(reset_reason_match.group(1).strip())
+                                    reason = reset_reason_match.group(1).strip()
+                                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    self.esp32_connection_status["device_info"]["reset_reason"].append({"reason": reason, "timestamp": timestamp})
 
                                 compile_time_match = re.search(r"Compile time: (.*?)\\x1b", line)
                                 if compile_time_match:
@@ -165,7 +167,7 @@ class ESPManager:
                                 "usb_mode": None,
                                 "app_version": None,
                                 "project_name": None,
-                                "reset_reason": [],
+                                "reset_reason": [], # Clear reset reasons on disconnect
                                 "compile_time": None,
                                 "esp_idf_version": None
                             }
