@@ -144,26 +144,8 @@ To connect your ESP32 device to the Raspberry Pi, simply connect it via a USB ca
 
 ## Architecture
 
-```plantuml
-@startuml
-!theme vibrant
-title RaspiLogger Application Architecture
-
-actor User
-participant "Web Browser" as Browser
-participant "Nginx" as Nginx
-participant "Flask Application" as Flask
-participant "ESP32 Device" as ESP32
-database "SQLite Database" as DB
-
-User -> Browser: Interacts with the web interface
-Browser -> Nginx: HTTP Requests
-Nginx -> Flask: Forwards requests
-Flask -> DB: Stores and retrieves logs
-Flask -> ESP32: Sends commands (restart, flash)
-ESP32 -> Flask: Sends logs
-@enduml
-```
+![RaspiLogger Application Architecture](
+     images/raspiLogger_architecture.png)
 
 ## Project Structure
 
@@ -199,10 +181,11 @@ raspiLogger/
 
 ## Todo List
 
-*   Certificate generation
-*   Reset reason logging
-*   GPIO integration/triggering
-*   Binary compilation
+*   [ ] Certificate generation
+*   [ ] Reset reason logging
+*   [ ] GPIO integration/triggering
+*   [ ] Binary compilation
+*   [ ] Change logger to custom logger from esptools.
 
 ## License
 
