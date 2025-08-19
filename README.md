@@ -196,3 +196,14 @@ raspiLogger/
 └── templates/          # HTML templates
     └── index.html
 ```
+
+## Todo List
+
+*   Certificate generation
+*   Reset reason logging
+*   GPIO integration/triggering
+*   Binary compilation
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
