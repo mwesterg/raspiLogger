@@ -77,7 +77,6 @@ class ESPManager:
                     self.esp32_connection_status["is_booting"] = False # Ensure it's false initially
                 logging.info(f"Successfully opened {device_path}. Waiting for messages...")
                 self.reset_esp32(device_path, get_info=True)
-                time.sleep(2) # Wait for the device to boot
                 
                 while True:
                     if self.esp32_connection_status["is_flashing"]:
