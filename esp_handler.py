@@ -102,16 +102,10 @@ class ESPManager:
                                     self.esp32_connection_status["boot_logs"].append(line)
                                     logging.debug(f"After append. New boot_logs length: {len(self.esp32_connection_status['boot_logs'])}")
                                     
-                                    # Parse the log to get the tag for boot detection
-                                    parsed_log_for_boot_check = parse_log_message(line)
-                                    if parsed_log_for_boot_check:
-                                        if parsed_log_for_boot_check['tag'] == 'cpu_start':
-                                            self.esp32_connection_status["cpu_start_count"] += 1
-                                        elif self.esp32_connection_status["cpu_start_count"] > 0: # If we've seen at least one cpu_start message
-                                            self.esp32_connection_status["is_booting"] = False
-                                            logging.info("App main started (cpu_start transition). Switching to normal logging.")
-                                            # Reset cpu_start_count for next boot
-                                            self.esp32_connection_status["cpu_start_count"] = 0
+                                    # End boot log capture when "main_task: Calling app_main()" is received
+                                    if "main_task: Calling app_main()" in line:
+                                        self.esp32_connection_status["is_booting"] = False
+                                        logging.info("App main started. Switching to normal logging.")
 
                                 # These regex matches should probably be moved to log_parser or a new device_info_parser
                                 # For now, keeping them here as they directly update esp32_connection_status
